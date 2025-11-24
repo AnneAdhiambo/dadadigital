@@ -354,9 +354,22 @@ export async function overlayTextOnPDF(pdfBytes, certificate, textPositions) {
     
     console.log('=== OVERLAY COMPLETE ===')
     
+    // Set deterministic metadata to ensure consistent hashing
+    // Use a fixed date so PDFs with same content have same hash
+    const fixedDate = new Date('2025-01-01T00:00:00Z')
+    pdfDoc.setCreationDate(fixedDate)
+    pdfDoc.setModificationDate(fixedDate)
+    // Set title to certificate ID for consistency
+    pdfDoc.setTitle(`Certificate ${certificate.id}`)
+    pdfDoc.setAuthor('Bitcoin Dada')
+    pdfDoc.setSubject('Digital Certificate')
+    pdfDoc.setProducer('Bitcoin Dada Certificate System')
+    
     // Serialize PDF to bytes
     console.log('Saving PDF with text overlay...')
-    const savedPdfBytes = await pdfDoc.save()
+    const savedPdfBytes = await pdfDoc.save({
+      useObjectStreams: false // Disable object streams for more deterministic output
+    })
     console.log('PDF saved, size:', savedPdfBytes.length, 'bytes')
     
     // Convert to Blob

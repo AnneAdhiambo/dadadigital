@@ -329,18 +329,31 @@ const VerifySection = () => {
     setVerificationResult(null);
 
     try {
-      if (file.type === 'application/pdf') {
+      // Check both MIME type and file extension as fallback
+      const isPDF = file.type === 'application/pdf' || 
+                    file.name.toLowerCase().endsWith('.pdf') ||
+                    file.type === 'application/octet-stream' && file.name.toLowerCase().endsWith('.pdf');
+      
+      if (isPDF) {
+        console.log('Processing PDF file:', file.name, 'Type:', file.type, 'Size:', file.size);
         const hash = await hashPDF(file);
+        console.log('PDF hash calculated:', hash.substring(0, 16) + '...');
         await new Promise(resolve => setTimeout(resolve, 800));
         
         const result = verifyPDFHashByHash(hash);
+        console.log('Verification result:', result);
         setVerificationResult({ type: 'file', ...result });
       } else {
-        setVerificationResult({ isValid: false, reason: 'Unsupported file type. Please upload a PDF.' });
+        console.warn('Invalid file type:', file.type, 'File name:', file.name);
+        setVerificationResult({ isValid: false, reason: 'Unsupported file type. Please upload a PDF file.' });
       }
     } catch (error) {
       console.error('File verification error:', error);
-      setVerificationResult({ isValid: false, reason: 'Error processing file' });
+      console.error('Error details:', error.message, error.stack);
+      setVerificationResult({ 
+        isValid: false, 
+        reason: `Error processing file: ${error.message || 'Unknown error'}` 
+      });
     } finally {
       setIsVerifying(false);
     }
@@ -514,7 +527,7 @@ const VerifySection = () => {
                 <div className="verify-upload-wrapper">
                   <input 
                     type="file" 
-                    accept=".pdf"
+                    accept=".pdf,application/pdf"
                     onChange={handleFileChange}
                     className="verify-file-input"
                     ref={fileInputRef}
