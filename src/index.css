@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --binance-yellow: #F7931A;
+  --binance-yellow-hover: #E6850A;
+}
+
+/* Public Pages Theme Variables - Dark Mode (Default) */
+:root[data-theme="dark"],
+:root:not([data-theme]) {
+  --binance-black: #181A20;
+  --binance-dark-gray: #2B3139;
+  --binance-text-gray: #848E9C;
+  --binance-white: #EAECEF;
+  --binance-bg-dark: #0B0E11;
+  --binance-border: #474D57;
+  --public-bg: #181A20;
+  --public-bg-secondary: #0B0E11;
+  --public-card: #1E2329;
+  --public-text: #EAECEF;
+  --public-text-secondary: #848E9C;
+  --public-border: #2B3139;
+}
+
+/* Public Pages Theme Variables - Light Mode */
+:root[data-theme="light"] {
+  --binance-black: #FFFFFF;
+  --binance-dark-gray: #F5F5F5;
+  --binance-text-gray: #5E6673;
+  --binance-white: #181A20;
+  --binance-bg-dark: #F8F9FA;
+  --binance-border: #E0E0E0;
+  --public-bg: #FFFFFF;
+  --public-bg-secondary: #F8F9FA;
+  --public-card: #FFFFFF;
+  --public-text: #181A20;
+  --public-text-secondary: #5E6673;
+  --public-border: #E0E0E0;
+}
+
+body {
+  font-family: 'Manrope', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Default theme (for public pages) */
+body {
+  background-color: var(--public-bg);
+  color: var(--public-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Admin pages will override with their own theme variables */
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--public-bg); 
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--public-border); 
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--binance-yellow); 
+}
+
+.hero-gradient {
+  background: radial-gradient(circle at top right, var(--public-border) 0%, var(--public-bg) 60%);
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #F7931A 0%, #E6850A 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass-card {
+  background: var(--public-card);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--public-border);
+  opacity: 0.9;
+}
+
+/* Animation utilities */
+.fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

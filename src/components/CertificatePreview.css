@@ -1,0 +1,556 @@
+.certificate-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.certificate-pdf-preview {
+  width: 100%;
+  max-width: 1200px;
+  min-height: 600px;
+}
+
+.pdf-preview-iframe {
+  width: 100%;
+  height: 800px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.certificate-loading,
+.certificate-placeholder,
+.certificate-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  background-color: #f9f9f9;
+  border: 2px dashed #e0e0e0;
+  border-radius: 4px;
+  padding: 2rem;
+}
+
+.certificate-error {
+  border-color: #f44336;
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.certificate-error p {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.btn-generate-preview {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.btn-generate-preview:hover {
+  background-color: #45a049;
+}
+
+.certificate {
+  width: 100%;
+  max-width: 1200px;
+  background-color: #ffffff;
+}
+
+.certificate-border {
+  border: 4px solid #f0b400;
+  border-radius: 8px;
+  padding: 3rem;
+  background-color: #ffffff;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.certificate-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid #f0b400;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.5rem 0;
+}
+
+.logo-container img {
+  max-width: 100%;
+  height: auto;
+}
+
+.header-text {
+  text-align: center;
+}
+
+.org-subtitle {
+  font-size: 1.25rem;
+  color: #f0b400;
+  margin: 0;
+  font-weight: 500;
+}
+
+.certificate-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.certificate-title {
+  margin-bottom: 2rem;
+}
+
+.certificate-title h2 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #000000;
+  margin: 0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.certificate-content {
+  max-width: 700px;
+}
+
+.presented-to {
+  font-size: 1.125rem;
+  color: #666666;
+  margin-bottom: 1rem;
+}
+
+.student-name {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #000000;
+  margin: 1rem 0;
+  font-family: 'Georgia', 'Times New Roman', serif;
+}
+
+.course-info {
+  font-size: 1.125rem;
+  color: #666666;
+  margin: 1rem 0;
+}
+
+.course-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #f0b400;
+  margin: 1rem 0;
+}
+
+.cohort-info {
+  font-size: 1.125rem;
+  color: #666666;
+  margin: 0.5rem 0;
+}
+
+.issue-date {
+  font-size: 1rem;
+  color: #666666;
+  margin-top: 1.5rem;
+  font-style: italic;
+}
+
+.certificate-footer {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.qr-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.qr-code-wrapper {
+  flex-shrink: 0;
+}
+
+.qr-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.qr-cert-id {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #000000;
+  font-family: 'Courier New', monospace;
+  margin: 0;
+}
+
+.qr-signature {
+  font-size: 0.75rem;
+  color: #666666;
+  font-family: 'Courier New', monospace;
+  margin: 0;
+  word-break: break-all;
+}
+
+.qr-scan-text {
+  font-size: 0.75rem;
+  color: #f0b400;
+  font-weight: 600;
+  margin: 0;
+  margin-top: 0.25rem;
+}
+
+.download-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.btn-download {
+  background-color: #f0b400;
+  color: #000000;
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-download:hover {
+  background-color: #f0b400;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+@media print {
+  .download-section {
+    display: none;
+  }
+  
+  .certificate-border {
+    box-shadow: none;
+    border: 4px solid #f0b400;
+  }
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .certificate-preview-container {
+    gap: 1rem;
+    padding: 0.5rem;
+  }
+
+  .certificate {
+    max-width: 100%;
+  }
+
+  .certificate-border {
+    padding: 1.5rem 1rem;
+    min-height: auto;
+    border-width: 3px;
+  }
+
+  .certificate-header {
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .logo-container {
+    max-width: 100%;
+    padding: 0.25rem 0;
+  }
+
+  .logo-container img {
+    max-width: 90%;
+  }
+
+  .org-subtitle {
+    font-size: 1rem;
+  }
+
+  .certificate-body {
+    padding: 1.5rem 0;
+  }
+
+  .certificate-title {
+    margin-bottom: 1.5rem;
+  }
+
+  .certificate-title h2 {
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+  }
+
+  .certificate-content {
+    max-width: 100%;
+    padding: 0 0.5rem;
+  }
+
+  .presented-to {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .student-name {
+    font-size: 1.75rem;
+    margin: 0.75rem 0;
+  }
+
+  .course-info {
+    font-size: 1rem;
+    margin: 0.75rem 0;
+  }
+
+  .course-name {
+    font-size: 1.25rem;
+    margin: 0.75rem 0;
+  }
+
+  .cohort-info {
+    font-size: 1rem;
+    margin: 0.5rem 0;
+  }
+
+  .issue-date {
+    font-size: 0.875rem;
+    margin-top: 1rem;
+  }
+
+  .certificate-footer {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+  }
+
+  .qr-section {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .qr-code-wrapper {
+    display: flex;
+    justify-content: center;
+  }
+
+  .qr-info {
+    align-items: center;
+    text-align: center;
+  }
+
+  .qr-cert-id {
+    font-size: 0.75rem;
+  }
+
+  .qr-signature {
+    font-size: 0.6875rem;
+  }
+
+  .qr-scan-text {
+    font-size: 0.6875rem;
+  }
+
+  .btn-download {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9375rem;
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .certificate-border {
+    padding: 1rem 0.75rem;
+  }
+
+  .certificate-header {
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .logo-container {
+    padding: 0.25rem 0;
+  }
+
+  .logo-container img {
+    max-width: 85%;
+  }
+
+  .certificate-title h2 {
+    font-size: 1.25rem;
+  }
+
+  .student-name {
+    font-size: 1.5rem;
+  }
+
+  .course-name {
+    font-size: 1.125rem;
+  }
+
+  .qr-code-wrapper svg {
+    width: 100px !important;
+    height: 100px !important;
+  }
+}
+
+/* Nostr Status Styles */
+.nostr-status-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Publishing Status Styles */
+.publishing-status-container {
+  padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.feature-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f0f9ff;
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #1e40af;
+}
+
+.feature-item svg {
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.publishing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border-radius: 6px;
+  border-left: 3px solid #e5e7eb;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.step-item svg {
+  flex-shrink: 0;
+}
+
+.step-item.step-in_progress {
+  background-color: #dbeafe;
+  border-left-color: #3b82f6;
+  color: #1e40af;
+}
+
+.step-item.step-completed {
+  background-color: #d1fae5;
+  border-left-color: #10b981;
+  color: #065f46;
+}
+
+.step-item.step-error {
+  background-color: #fee2e2;
+  border-left-color: #ef4444;
+  color: #991b1b;
+}
+
+.current-relay-status {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #fef3c7;
+  border-radius: 6px;
+  border-left: 3px solid #f59e0b;
+}
+
+.generating-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  color: #1e40af;
+  font-size: 0.95rem;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .publishing-status-container {
+    padding: 1rem;
+  }
+
+  .feature-highlights {
+    padding: 0.75rem;
+  }
+
+  .step-item {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+}
+
