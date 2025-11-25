@@ -1,7 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import Papa from 'papaparse'
 import JSZip from 'jszip'
-import { generateCertificateId, createDigitalSignature, saveCertificate } from '../utils/certificateUtils'
+import { 
+  generateCertificateId, 
+  createDigitalSignature, 
+  saveCertificate,
+  hashPDF,
+  updateCertificatePDFHash
+} from '../utils/certificateUtils'
 import { getAllTemplates, populateTemplate } from '../utils/templateUtils'
 import { 
   UploadCloud, 
@@ -285,6 +291,18 @@ function BatchProcessing() {
         certificate.signature = signature
 
         saveCertificate(certificate)
+
+        try {
+          const pdfBlob = await populateTemplate(null, certificate, selectedTemplate)
+          const pdfHash = await hashPDF(pdfBlob)
+          
+          updateCertificatePDFHash(certificateId, pdfHash)
+          certificate.pdfHash = pdfHash
+        } catch (hashError) {
+          console.error(`Error generating hash for ${certificateId}:`, hashError)
+          certificate.pdfHash = null
+        }
+
         certificates.push(certificate)
       } catch (error) {
         errors.push({ recipient, error: error.message })

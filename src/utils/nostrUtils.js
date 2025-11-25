@@ -7,10 +7,7 @@ import {
 } from 'nostr-tools';
 
 // Storage key name for Nostr private key in localStorage
-const STORAGE_KEY_NAME = 'nostr_private_key';
-
-// Storage key for Nostr private key
-const STORAGE_KEY = '';
+export const STORAGE_KEY_NAME = 'nostr_private_key';
 
 
 // Nostr relays for publishing

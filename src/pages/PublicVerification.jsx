@@ -17,24 +17,42 @@ function PublicVerification() {
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef(null)
 
-  // Handle QR code links with /verify/:certificateId or ?id= parameter
+  // Handle QR code links with /verify/:certificateId or ?id= / ?hash= parameters
   useEffect(() => {
-    // Check URL parameter first (from route)
-    let certId = certificateId
-    
-    // Fallback to query parameter (for backward compatibility)
-    if (!certId) {
-      const urlParams = new URLSearchParams(window.location.search)
-      certId = urlParams.get('id')
+    const urlParams = new URLSearchParams(window.location.search)
+    let certId = certificateId || urlParams.get('id')
+    const hashParam = urlParams.get('hash')
+
+    if (hashParam && !verificationResult) {
+      handleHashVerify(hashParam)
+      return
     }
-    
+
     if (certId && !verificationResult) {
-      // Auto-verify when ID is in URL (from QR code scan)
       setSearchQuery(certId)
       handleAutoVerify(certId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [certificateId]) // Run when certificateId changes
+  }, [certificateId])
+  const handleHashVerify = async (hashValue) => {
+    if (!hashValue) return
+
+    setIsVerifying(true)
+    setVerificationResult(null)
+
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    try {
+      const normalizedHash = hashValue.trim().toLowerCase()
+      const result = verifyPDFHashByHash(normalizedHash)
+      setVerificationResult({ type: 'hash', ...result })
+    } catch (error) {
+      console.error('Hash verification error:', error)
+      setVerificationResult({ isValid: false, reason: 'An error occurred while verifying hash' })
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
   const handleAutoVerify = async (certId) => {
     setIsVerifying(true)
