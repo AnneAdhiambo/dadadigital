@@ -19,9 +19,10 @@ import {
   PenTool,
   Upload,
   X,
-  Search
+  Search,
+  QrCode
 } from 'lucide-react'
-import { getStoredSignatures } from '../utils/signatureUtils'
+import { getStoredSignatures, getSignatureById } from '../utils/signatureUtils'
 import './TemplateEditorPage.css'
 
 function TemplateEditorPage() {
@@ -31,18 +32,21 @@ function TemplateEditorPage() {
   
   const [templateName, setTemplateName] = useState('')
   const [templateDescription, setTemplateDescription] = useState('')
+  const [originalTemplateName, setOriginalTemplateName] = useState('') // Track original name for "Save As"
   const [backgroundImage, setBackgroundImage] = useState(null)
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null)
+  const [imageDimensions, setImageDimensions] = useState({ width: 1200, height: 800 }) // Default, will be updated when image loads
   const [elements, setElements] = useState([])
   const [selectedElement, setSelectedElement] = useState(null)
   const [activeField, setActiveField] = useState(null)
   const [activeElementType, setActiveElementType] = useState(null)
-  const [previewScale, setPreviewScale] = useState(0.7)
+  const [previewScale, setPreviewScale] = useState(1.0)
   const [isSaving, setIsSaving] = useState(false)
   const [previewMode, setPreviewMode] = useState('edit') // 'edit' or 'final'
   
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
+  const imageRef = useRef(null)
 
   const fieldOptions = [
     { key: 'studentName', label: 'Student Name', required: true },
@@ -74,14 +78,45 @@ function TemplateEditorPage() {
       }
 
       setTemplateName(template.name || '')
+      setOriginalTemplateName(template.name || '') // Store original name for "Save As" detection
       setTemplateDescription(template.description || '')
       
-      // Load background image
+      // Load background image - ensure it persists
       if (template.templateContent) {
-        setBackgroundImageUrl(template.templateContent)
-      } else if (template.filename) {
-        const imageUrl = await loadTemplate(id)
+        const imageUrl = template.templateContent
         setBackgroundImageUrl(imageUrl)
+        // Load image dimensions if stored
+        if (template.imageWidth && template.imageHeight) {
+          setImageDimensions({ width: template.imageWidth, height: template.imageHeight })
+        } else {
+          // Detect dimensions from image
+          const img = new Image()
+          img.onload = () => {
+            setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight })
+          }
+          img.onerror = () => {
+            console.error('Failed to load image from templateContent')
+          }
+          img.src = imageUrl
+        }
+      } else if (template.filename) {
+        try {
+          const imageUrl = await loadTemplate(id)
+          if (imageUrl) {
+            setBackgroundImageUrl(imageUrl)
+            // Detect dimensions from image
+            const img = new Image()
+            img.onload = () => {
+              setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight })
+            }
+            img.onerror = () => {
+              console.error('Failed to load image from filename')
+            }
+            img.src = imageUrl
+          }
+        } catch (error) {
+          console.error('Error loading template image:', error)
+        }
       }
 
       // Load elements - ONLY use elements array, NEVER auto-convert textPositions
@@ -116,6 +151,14 @@ function TemplateEditorPage() {
         const url = event.target.result
         setBackgroundImageUrl(url)
         setBackgroundImage(file)
+        
+        // Detect actual image dimensions
+        const img = new Image()
+        img.onload = () => {
+          setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight })
+          console.log('Image dimensions detected:', img.naturalWidth, 'x', img.naturalHeight)
+        }
+        img.src = url
       }
       reader.readAsDataURL(file)
     } else {
@@ -126,12 +169,18 @@ function TemplateEditorPage() {
   const handleCanvasClick = (e) => {
     if (!activeElementType || !backgroundImageUrl) return
 
-    const container = containerRef.current
-    if (!container) return
+    const imageElement = imageRef.current
+    if (!imageElement) return
 
-    const rect = container.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / previewScale
-    const y = (e.clientY - rect.top) / previewScale
+    // Get the image element's bounding rect to calculate accurate coordinates
+    const imageRect = imageElement.getBoundingClientRect()
+    
+    // Calculate scale factor: displayed size vs natural size
+    const scale = imageRect.width / imageDimensions.width
+    
+    // Calculate coordinates relative to the image's natural dimensions
+    const x = (e.clientX - imageRect.left) / scale
+    const y = (e.clientY - imageRect.top) / scale
 
     if (activeElementType === 'text' && activeField) {
       const newElement = {
@@ -161,6 +210,18 @@ function TemplateEditorPage() {
         width: 200,
         height: 80,
         signatureId: null
+      }
+      setElements([...elements, newElement])
+      setSelectedElement(newElement.id)
+      setActiveElementType(null)
+    } else if (activeElementType === 'qrcode') {
+      // Handle QR code placement
+      const newElement = {
+        id: `element-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: 'qrcode',
+        x: x,
+        y: y,
+        size: 70 // Default QR code size
       }
       setElements([...elements, newElement])
       setSelectedElement(newElement.id)
@@ -212,25 +273,44 @@ function TemplateEditorPage() {
 
     setIsSaving(true)
     try {
+      // "Save As" logic: If name changed from original, create new template
+      const nameChanged = templateId && templateId !== 'new' && 
+                         originalTemplateName && 
+                         templateName.trim() !== originalTemplateName.trim()
+      
       // When using elements array, do NOT save textPositions to avoid double rendering
       // Only save textPositions for backward compatibility with very old templates
       const templateData = {
-        id: templateId && templateId !== 'new' ? templateId : undefined,
+        // If name changed, create new template (Save As), otherwise use existing ID
+        id: (nameChanged || templateId === 'new') ? undefined : templateId,
         name: templateName.trim(),
         description: templateDescription.trim(),
         type: 'png',
         elements: elements, // Can be empty array - user adds elements manually
         // Do NOT include textPositions when elements exist - this prevents double rendering
         textPositions: undefined,
-        templateContent: backgroundImageUrl,
-        createdAt: templateId && templateId !== 'new' ? getTemplate(templateId)?.createdAt : new Date().toISOString(),
+        templateContent: backgroundImageUrl, // Always save the image URL
+        imageWidth: imageDimensions.width, // Store actual image dimensions
+        imageHeight: imageDimensions.height, // Store actual image dimensions
+        createdAt: (nameChanged || templateId === 'new') ? new Date().toISOString() : (getTemplate(templateId)?.createdAt || new Date().toISOString()),
         updatedAt: new Date().toISOString()
       }
 
+      // If editing from a base template, preserve the baseTemplateId relationship
+      if (templateId && templateId !== 'new') {
+        const existingTemplate = getTemplate(templateId)
+        if (existingTemplate?.baseTemplateId) {
+          templateData.baseTemplateId = existingTemplate.baseTemplateId
+        }
+      }
+
       console.log('Saving template with elements:', templateData.elements?.length || 0, 'elements')
+      if (nameChanged) {
+        console.log('Name changed - creating new template (Save As)')
+      }
       saveCustomTemplate(templateData)
       console.log('Template saved successfully')
-      alert('Template saved successfully!')
+      alert(nameChanged ? 'Template saved as new template!' : 'Template saved successfully!')
       navigate('/admin/templates')
     } catch (error) {
       console.error('Error saving template:', error)
@@ -334,6 +414,13 @@ function TemplateEditorPage() {
                 <PenTool size={18} />
                 Add Signature
               </button>
+              <button
+                className={`element-btn ${activeElementType === 'qrcode' ? 'active' : ''}`}
+                onClick={() => setActiveElementType('qrcode')}
+              >
+                <QrCode size={18} />
+                Add QR Code
+              </button>
             </div>
             {activeElementType === 'text' && (
               <div className="field-selector">
@@ -352,7 +439,7 @@ function TemplateEditorPage() {
               </div>
             )}
             {activeElementType && (
-              <p className="hint">Click on the preview to place {activeElementType === 'text' ? 'text' : 'signature'}</p>
+              <p className="hint">Click on the preview to place {activeElementType === 'text' ? 'text' : activeElementType === 'signature' ? 'signature' : 'QR code'}</p>
             )}
           </div>
 
@@ -436,27 +523,44 @@ function TemplateEditorPage() {
                 <div 
                   className="certificate-preview"
                   style={{
-                    backgroundImage: `url(${backgroundImageUrl})`,
-                    backgroundSize: 'contain',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
-                    width: '1200px',
-                    height: '800px',
                     position: 'relative',
-                    transform: `scale(${previewScale})`,
-                    transformOrigin: 'top left'
+                    display: 'inline-block'
                   }}
                 >
-                  {elements.map(element => (
-                    <ElementPreview
-                      key={element.id}
-                      element={element}
-                      isSelected={selectedElement === element.id}
-                      onSelect={() => setSelectedElement(element.id)}
-                      onDrag={handleElementDrag}
-                      scale={previewScale}
-                    />
-                  ))}
+                  <img
+                    ref={imageRef}
+                    src={backgroundImageUrl}
+                    alt="Certificate template"
+                    style={{
+                      maxWidth: '1400px',
+                      maxHeight: '100%',
+                      width: 'auto',
+                      height: 'auto',
+                      display: 'block',
+                      objectFit: 'contain'
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: `${imageDimensions.width}px`,
+                      height: `${imageDimensions.height}px`,
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    {elements.map(element => (
+                      <ElementPreview
+                        key={element.id}
+                        element={element}
+                        isSelected={selectedElement === element.id}
+                        onSelect={() => setSelectedElement(element.id)}
+                        onDrag={handleElementDrag}
+                        scale={1}
+                      />
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="preview-placeholder">
@@ -471,6 +575,8 @@ function TemplateEditorPage() {
                     backgroundImageUrl={backgroundImageUrl}
                     elements={elements}
                     scale={previewScale}
+                    imageWidth={imageDimensions.width}
+                    imageHeight={imageDimensions.height}
                   />
                   <p className="html-preview-note">This is exactly how the certificate will look when generated</p>
                 </div>
@@ -607,6 +713,15 @@ function ElementPreview({ element, isSelected, onSelect, onDrag, scale }) {
       </div>
     )
   } else if (element.type === 'signature') {
+    // Get signature data - check signatureData first, then load by signatureId
+    let signatureData = element.signatureData
+    if (!signatureData && element.signatureId) {
+      const signature = getSignatureById(element.signatureId)
+      if (signature && signature.signatureData) {
+        signatureData = signature.signatureData
+      }
+    }
+    
     return (
       <div
         ref={elementRef}
@@ -620,18 +735,61 @@ function ElementPreview({ element, isSelected, onSelect, onDrag, scale }) {
           border: isSelected ? '2px dashed var(--admin-accent)' : '2px dashed #ccc',
           cursor: 'move',
           transform: `translate(-50%, -50%)`,
-          backgroundColor: isDragging ? 'rgba(247, 147, 26, 0.3)' : 'rgba(255, 255, 255, 0.5)',
+          backgroundColor: isDragging ? 'rgba(247, 147, 26, 0.3)' : (signatureData ? 'transparent' : 'rgba(255, 255, 255, 0.5)'),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '12px',
           color: '#666',
           zIndex: isDragging ? 100 : (isSelected ? 20 : 10),
-          transition: isDragging ? 'none' : 'all 0.1s ease'
+          transition: isDragging ? 'none' : 'all 0.1s ease',
+          overflow: 'hidden'
         }}
         onMouseDown={handleMouseDown}
       >
-        Signature Placeholder
+        {signatureData ? (
+          <img 
+            src={signatureData} 
+            alt="Signature" 
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain',
+              pointerEvents: 'none'
+            }}
+          />
+        ) : (
+          <span>Signature Placeholder</span>
+        )}
+      </div>
+    )
+  } else if (element.type === 'qrcode') {
+    return (
+      <div
+        ref={elementRef}
+        className={`element-preview qrcode-element ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
+        style={{
+          position: 'absolute',
+          left: `${element.x}px`,
+          top: `${element.y}px`,
+          width: `${element.size || 70}px`,
+          height: `${element.size || 70}px`,
+          border: isSelected ? '2px dashed var(--admin-accent)' : '2px dashed #ccc',
+          cursor: 'move',
+          transform: `translate(-50%, -50%)`,
+          backgroundColor: isDragging ? 'rgba(247, 147, 26, 0.3)' : 'rgba(255, 255, 255, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '12px',
+          color: '#666',
+          zIndex: isDragging ? 100 : (isSelected ? 20 : 10),
+          transition: isDragging ? 'none' : 'all 0.1s ease',
+          overflow: 'hidden'
+        }}
+        onMouseDown={handleMouseDown}
+      >
+        <QrCode size={element.size ? element.size * 0.6 : 42} style={{ opacity: 0.6 }} />
       </div>
     )
   }
@@ -655,7 +813,7 @@ function getSampleText(field, customText) {
   return samples[field] || 'Sample Text'
 }
 
-function HTMLCertificatePreview({ backgroundImageUrl, elements, scale = 1 }) {
+function HTMLCertificatePreview({ backgroundImageUrl, elements, imageWidth = 1200, imageHeight = 800, scale = 1.0 }) {
   const sampleData = {
     studentName: 'John Doe',
     courseType: 'Bitcoin & Blockchain Fundamentals',
@@ -687,11 +845,36 @@ function HTMLCertificatePreview({ backgroundImageUrl, elements, scale = 1 }) {
     <div 
       className="html-certificate-preview"
       style={{
-        backgroundImage: `url(${backgroundImageUrl})`,
-        transform: `scale(${scale})`,
-        transformOrigin: 'top left'
+        position: 'relative',
+        display: 'inline-block'
       }}
     >
+      <img
+        src={backgroundImageUrl}
+        alt="Certificate template"
+        style={{
+          maxWidth: '1400px',
+          maxHeight: '100%',
+          width: 'auto',
+          height: 'auto',
+          display: 'block',
+          objectFit: 'contain',
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left'
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: `${imageWidth}px`,
+          height: `${imageHeight}px`,
+          pointerEvents: 'none',
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left'
+        }}
+      >
       {elements.map(element => {
         if (element.type === 'text') {
           let text = element.field === 'custom' && element.customText 
@@ -742,6 +925,15 @@ function HTMLCertificatePreview({ backgroundImageUrl, elements, scale = 1 }) {
             </div>
           )
         } else if (element.type === 'signature') {
+          // Get signature data - check signatureData first, then load by signatureId
+          let signatureData = element.signatureData
+          if (!signatureData && element.signatureId) {
+            const signature = getSignatureById(element.signatureId)
+            if (signature && signature.signatureData) {
+              signatureData = signature.signatureData
+            }
+          }
+          
           return (
             <div
               key={element.id}
@@ -752,23 +944,65 @@ function HTMLCertificatePreview({ backgroundImageUrl, elements, scale = 1 }) {
                 top: `${element.y}px`,
                 width: `${element.width || 200}px`,
                 height: `${element.height || 80}px`,
-                border: '1px dashed #ccc',
+                border: signatureData ? 'none' : '1px dashed #ccc',
                 transform: 'translate(-50%, -50%)',
-                backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                backgroundColor: signatureData ? 'transparent' : 'rgba(255, 255, 255, 0.5)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontSize: '12px',
                 color: '#666',
-                fontFamily: 'Arial, sans-serif'
+                fontFamily: 'Arial, sans-serif',
+                overflow: 'hidden'
               }}
             >
-              Signature Placeholder
+              {signatureData ? (
+                <img 
+                  src={signatureData} 
+                  alt="Signature" 
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    pointerEvents: 'none'
+                  }}
+                />
+              ) : (
+                <span>Signature Placeholder</span>
+              )}
+            </div>
+          )
+        } else if (element.type === 'qrcode') {
+          // Generate a sample QR code for preview
+          return (
+            <div
+              key={element.id}
+              className="html-preview-text"
+              style={{
+                position: 'absolute',
+                left: `${element.x}px`,
+                top: `${element.y}px`,
+                width: `${element.size || 70}px`,
+                height: `${element.size || 70}px`,
+                border: '1px dashed #ccc',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                color: '#666',
+                fontFamily: 'Arial, sans-serif',
+                overflow: 'hidden'
+              }}
+            >
+              <QrCode size={element.size ? element.size * 0.6 : 42} style={{ opacity: 0.6 }} />
             </div>
           )
         }
         return null
       })}
+      </div>
     </div>
   )
 }
@@ -807,6 +1041,24 @@ function ElementProperties({ element, onUpdate, availableFonts = [] }) {
   if (element.type === 'text') {
     return (
       <div className="element-properties">
+        {element.field === 'custom' && (
+          <div className="prop-group">
+            <label>Custom Text</label>
+            <input
+              type="text"
+              value={element.customText || 'Custom Text'}
+              onChange={(e) => onUpdate({ customText: e.target.value || 'Custom Text' })}
+              placeholder="Enter custom text..."
+              style={{
+                width: '100%',
+                padding: '8px',
+                fontSize: '14px',
+                border: '1px solid #ccc',
+                borderRadius: '4px'
+              }}
+            />
+          </div>
+        )}
         <div className="prop-group">
           <label>Font Family</label>
           <select
@@ -945,6 +1197,26 @@ function ElementProperties({ element, onUpdate, availableFonts = [] }) {
             </div>
           </>
         )}
+      </div>
+    )
+  } else if (element.type === 'qrcode') {
+    return (
+      <div className="element-properties">
+        <div className="prop-group">
+          <label>QR Code Size</label>
+          <input
+            type="number"
+            value={element.size || 70}
+            onChange={(e) => onUpdate({ size: parseInt(e.target.value) || 70 })}
+            min="30"
+            max="200"
+          />
+        </div>
+        <div className="prop-group">
+          <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>
+            The QR code will link to the certificate verification page.
+          </p>
+        </div>
       </div>
     )
   }
