@@ -425,28 +425,59 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
       cohort: certificate.cohort
     })
     
-    // Fetch PNG image from blob URL
-    console.log('Loading PNG image from blob URL...')
-    const imageResponse = await fetch(templateData)
-    if (!imageResponse.ok) {
-      throw new Error(`Failed to load PNG image: ${imageResponse.status} ${imageResponse.statusText}`)
+    // Load PNG image - handle both data URLs and blob URLs
+    console.log('Loading PNG image...')
+    let imageBytes = null
+    
+    // Check if it's a data URL (starts with data:image)
+    if (typeof templateData === 'string' && templateData.startsWith('data:image')) {
+      console.log('Detected data URL, converting directly...')
+      // Convert data URL to ArrayBuffer
+      const base64Data = templateData.split(',')[1]
+      if (base64Data) {
+        const binaryString = atob(base64Data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        imageBytes = bytes.buffer
+      } else {
+        throw new Error('Invalid data URL format')
+      }
+    } else {
+      // It's a blob URL or regular URL - fetch it
+      console.log('Fetching image from URL...')
+      const imageResponse = await fetch(templateData)
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to load PNG image: ${imageResponse.status} ${imageResponse.statusText}`)
+      }
+      imageBytes = await imageResponse.arrayBuffer()
     }
-    const imageBytes = await imageResponse.arrayBuffer()
     
     // Create new PDF document
     const pdfDoc = await PDFDocument.create()
+    
+    // Get template configuration for text positions
+    // Use override if provided (for preview generation), otherwise load from storage
+    const templateConfig = templateConfigOverride || getTemplate(templateId)
     
     // Embed PNG image
     const pngImage = await pdfDoc.embedPng(imageBytes)
     const pngDims = pngImage.scale(1)
     
-    // Create page with PNG dimensions
-    const page = pdfDoc.addPage([pngDims.width, pngDims.height])
-    const width = pngDims.width
-    const height = pngDims.height
-    console.log(`PNG image size: ${width} x ${height} points`)
+    // Use stored image dimensions if available, otherwise use detected PNG dimensions
+    // This ensures coordinates match exactly between preview and PDF
+    // Priority: templateConfig dimensions > PNG dimensions
+    const targetWidth = templateConfig.imageWidth || pngDims.width
+    const targetHeight = templateConfig.imageHeight || pngDims.height
     
-    // Draw PNG as background
+    // Create page with exact dimensions from template config (or PNG if not available)
+    const page = pdfDoc.addPage([targetWidth, targetHeight])
+    const width = targetWidth
+    const height = targetHeight
+    console.log(`PDF page size: ${width} x ${height} points (template: ${templateConfig.imageWidth || 'N/A'} x ${templateConfig.imageHeight || 'N/A'}, PNG: ${pngDims.width} x ${pngDims.height})`)
+    
+    // Draw PNG as background - scale to fit page dimensions exactly
     page.drawImage(pngImage, {
       x: 0,
       y: 0,
@@ -454,17 +485,21 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
       height: height
     })
     
-    // Get template configuration for text positions
-    // Use override if provided (for preview generation), otherwise load from storage
-    const templateConfig = templateConfigOverride || getTemplate(templateId)
+    // Calculate scaling factors if template dimensions differ from PNG dimensions
+    // This handles cases where stored dimensions don't match actual PNG size
+    const canvasWidth = templateConfig.imageWidth || width  // Use stored width or actual page width
+    const canvasHeight = templateConfig.imageHeight || height  // Use stored height or actual page height
     
-    // Canvas uses fixed dimensions (1200x800), but actual PNG may have different dimensions
-    // We need to scale coordinates from canvas space to actual image space
-    const canvasWidth = 1200  // Fixed canvas width used in TemplateEditor
-    const canvasHeight = 800  // Fixed canvas height used in TemplateEditor
-    const scaleX = width / canvasWidth
-    const scaleY = height / canvasHeight
+    // If canvas dimensions match PDF dimensions exactly, no scaling needed (1:1 mapping)
+    // Otherwise, scale proportionally (for legacy templates that used different dimensions)
+    const scaleX = canvasWidth && canvasWidth > 0 ? width / canvasWidth : 1
+    const scaleY = canvasHeight && canvasHeight > 0 ? height / canvasHeight : 1
     console.log(`Coordinate scaling: canvas (${canvasWidth}x${canvasHeight}) -> PDF (${width}x${height}), scale: (${scaleX.toFixed(3)}, ${scaleY.toFixed(3)})`)
+    
+    // If dimensions match exactly, coordinates should be 1:1 (no scaling)
+    if (Math.abs(scaleX - 1) < 0.001 && Math.abs(scaleY - 1) < 0.001) {
+      console.log('✓ Canvas and PDF dimensions match exactly - using 1:1 coordinate mapping')
+    }
     
     // Get text positions - ONLY use elements array, NEVER use textPositions
     // This ensures template manager output is exactly what gets rendered
@@ -513,10 +548,11 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
       
       // Check for custom fonts first (handle various font name formats)
       const fontName = fontFamily || templateConfig.fontName || ''
+      const fontNameLower = fontName.toLowerCase()
       
       // Web fonts (Montserrat, Poppins, Open Sans) fall back to Helvetica for PDF
       const webFonts = ['montserrat', 'poppins', 'open sans']
-      if (webFonts.includes(family)) {
+      if (webFonts.some(wf => fontNameLower.includes(wf))) {
         // Use Helvetica as fallback for web fonts in PDF
         return weight === 'bold' || weight === '700' || weight === '600' 
           ? helveticaBoldFont 
@@ -587,6 +623,10 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
         })
     
     // Helper to safely draw text with coordinate conversion
+    // CRITICAL: HTML preview uses CSS transforms for centering:
+    // - transform: translate(-50%, -50%) centers text at (x, y)
+    // - This means (x, y) is the CENTER of the text element
+    // - PDF needs to match this exactly for WYSIWYG
     const safeDrawText = async (pos, text, label) => {
       if (!pos) {
         console.warn(`No position config for ${label}`)
@@ -597,35 +637,40 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
         return false
       }
       
-      // PDF coordinates: (0,0) is bottom-left, y increases upward
-      // Canvas uses middle baseline (textBaseline: 'middle'), PDF uses bottom baseline
-      // Positions are given as top-down (y from top), so convert: pdfY = height - pos.y
-      // Note: pos.y is already scaled from canvas coordinates to PDF coordinates
-      // Canvas y is at text center, PDF y is at baseline, so we need a small adjustment
       const fontSize = pos.fontSize || pos.size || 12
-      // Adjust for baseline: canvas middle -> PDF baseline (approximately fontSize * 0.4)
-      const pdfY = height - pos.y + (fontSize * 0.4)
+      const font = await getFont(pos.fontFamily || pos.font, pos.fontWeight || pos.weight)
+      const color = getColor(pos.color || pos.fill)
       
-      // Handle alignment - positions are already scaled, so use them directly
-      let xPos = pos.x
+      // HTML preview uses: top: y, left: x with transform: translate(-50%, -50%)
+      // This means (x, y) is the CENTER of the text element
+      // PDF coordinates: (0,0) is bottom-left, y increases upward
+      // We need to convert from HTML top-left origin to PDF bottom-left origin
+      
+      // Convert Y coordinate: HTML top = 0, PDF bottom = 0
+      // HTML y is the center of the text (due to translate(-50%, -50%))
+      // PDF y is the baseline
+      // For exact matching, we need to account for:
+      // 1. Y coordinate flip: height - y (converts top-left to bottom-left origin)
+      // 2. Text center to baseline: For most fonts, baseline is approximately fontSize * 0.8 below the center
+      // Formula: pdfY = height - pos.y - (fontSize * 0.8)
+      const pdfY = height - pos.y - (fontSize * 0.8)
+      
+      // Handle X alignment - HTML uses transform, PDF needs manual calculation
+      const textWidth = font.widthOfTextAtSize(text, fontSize)
+      let pdfX
+      
       if (pos.align === 'center') {
-        // For center alignment, use the actual center of the PDF
-        xPos = width / 2
-      } else if (pos.align === 'left') {
-        // For left alignment, use the x position as-is
-        xPos = pos.x
+        // HTML: left: x, transform: translate(-50%, -50%) means x is the center
+        // PDF: Use x as center, subtract half text width
+        pdfX = pos.x - textWidth / 2
       } else if (pos.align === 'right') {
-        // For right alignment, use the x position as-is (will be handled in drawing)
-        xPos = pos.x
+        // HTML: left: x, transform: translate(-100%, -50%) means x is the right edge
+        // PDF: Use x as right edge, subtract full text width
+        pdfX = pos.x - textWidth
       } else {
-        // Default: assume center if x is close to center (within 5% of width)
-        const centerThreshold = width * 0.05
-        if (Math.abs(pos.x - width / 2) < centerThreshold) {
-          xPos = width / 2
-          console.log(`Auto-centering ${label} (x=${pos.x.toFixed(1)} is near center)`)
-        } else {
-          xPos = pos.x
-        }
+        // HTML: left: x, transform: translate(0, -50%) means x is the left edge
+        // PDF: Use x directly as left edge
+        pdfX = pos.x
       }
       
       // Validate coordinates
@@ -634,31 +679,15 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
         return false
       }
       
-      const font = await getFont(pos.fontFamily || pos.font, pos.fontWeight || pos.weight)
-      const color = getColor(pos.color || pos.fill)
-      
       try {
-        if (pos.align === 'center' || (pos.x && Math.abs(pos.x - width / 2) < 50)) {
-          drawCenteredText(page, text, xPos, pdfY, fontSize, font, color)
-        } else if (pos.align === 'right') {
-          const textWidth = font.widthOfTextAtSize(text, fontSize)
-          page.drawText(text, {
-            x: xPos - textWidth,
-            y: pdfY,
-            size: fontSize,
-            font: font,
-            color: color
-          })
-        } else {
-          page.drawText(text, {
-            x: xPos,
-            y: pdfY,
-            size: fontSize,
-            font: font,
-            color: color
-          })
-        }
-        console.log(`✓ Overlaid ${label}: "${text}" at (${xPos.toFixed(1)}, ${pdfY.toFixed(1)}) [from top: ${pos.y}], fontSize: ${fontSize}`)
+        page.drawText(text, {
+          x: pdfX,
+          y: pdfY,
+          size: fontSize,
+          font: font,
+          color: color
+        })
+        console.log(`✓ Overlaid ${label}: "${text}" at PDF(${pdfX.toFixed(1)}, ${pdfY.toFixed(1)}) [HTML: (${pos.x}, ${pos.y})], fontSize: ${fontSize}, align: ${pos.align || 'left'}`)
         return true
       } catch (drawError) {
         console.error(`Error drawing text for ${label}:`, drawError)
@@ -845,8 +874,10 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
                 // Scale signature dimensions
                 const sigWidth = (sigElement.width || 200) * scaleX
                 const sigHeight = (sigElement.height || 80) * scaleY
-                const sigX = sigElement.x * scaleX - sigWidth / 2  // Center the signature
-                const sigY = height - (sigElement.y * scaleY) - sigHeight / 2  // Convert Y and center
+                // HTML uses transform: translate(-50%, -50%) which centers at (x, y)
+                // PDF: x is center, y is center (after Y flip)
+                const sigX = sigElement.x * scaleX - sigWidth / 2  // Center horizontally
+                const sigY = height - (sigElement.y * scaleY) - sigHeight / 2  // Center vertically (Y flipped)
                 
                 page.drawImage(sigImage, {
                   x: sigX,
@@ -870,6 +901,12 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
     }
     
     // Generate and embed QR code for verification
+    // Check if template has a QR code element positioned by user
+    let qrCodeElement = null
+    if (templateConfig.elements && templateConfig.elements.length > 0) {
+      qrCodeElement = templateConfig.elements.find(el => el.type === 'qrcode')
+    }
+    
     try {
       const verificationUrl = `${window.location.origin}/verify/${certificate.id}`
       console.log('Generating QR code for:', verificationUrl)
@@ -888,12 +925,23 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
       const qrCodeImageBytes = await fetch(qrCodeDataUrl).then(res => res.arrayBuffer())
       const qrCodeImage = await pdfDoc.embedPng(qrCodeImageBytes)
       
-      // Calculate QR code size (make it smaller, about 70-80 points to fit nicely)
-      const qrSize = 70
-      const qrX = 50 // Left side margin (50 points from left edge)
-      const qrY = 50 // Bottom-left area (50 points from bottom)
+      // Use template element position if available, otherwise use default
+      let qrSize, qrX, qrY
+      if (qrCodeElement) {
+        // Use user-defined position and size from template
+        qrSize = (qrCodeElement.size || 70) * Math.min(scaleX, scaleY)
+        qrX = qrCodeElement.x * scaleX - qrSize / 2  // Center the QR code
+        qrY = height - (qrCodeElement.y * scaleY) - qrSize / 2  // Convert Y and center
+        console.log(`Using template QR code position: (${qrCodeElement.x}, ${qrCodeElement.y}), size: ${qrCodeElement.size || 70}`)
+      } else {
+        // Default position (bottom-left corner)
+        qrSize = 70
+        qrX = 50
+        qrY = 50
+        console.log('Using default QR code position (bottom-left)')
+      }
       
-      // Draw QR code on the bottom-left corner
+      // Draw QR code
       page.drawImage(qrCodeImage, {
         x: qrX,
         y: qrY,
@@ -901,7 +949,7 @@ export async function generatePDFFromPNGTemplate(templateData, certificate, temp
         height: qrSize
       })
       
-      console.log(`✓ QR code embedded at bottom-left (${qrX}, ${qrY}), size: ${qrSize}x${qrSize}`)
+      console.log(`✓ QR code embedded at (${qrX.toFixed(1)}, ${qrY.toFixed(1)}), size: ${qrSize.toFixed(1)}x${qrSize.toFixed(1)}`)
     } catch (qrError) {
       console.warn('Failed to generate QR code:', qrError)
       // Continue without QR code if generation fails

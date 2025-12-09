@@ -192,8 +192,11 @@ export async function loadTemplate(templateId) {
       template.fontName = parseFontFromFilename(template.filename)
     }
     
+    // Determine template type - default to PNG for custom templates without type
+    const templateType = template.type || (template.templateContent ? 'png' : 'png')
+    
     // For PNG templates, return the image URL
-    if (template.type === 'png') {
+    if (templateType === 'png') {
       const pathsToTry = template.filename ? [
         `/templates/${template.filename}`, // Public folder
         `/src/templates/${template.filename}`, // Source folder (dev)
@@ -221,7 +224,7 @@ export async function loadTemplate(templateId) {
     }
     
     // For SVG templates (legacy support)
-    if (template.type === 'svg') {
+    if (templateType === 'svg') {
       const pathsToTry = template.filename ? [
         `/templates/${template.filename}`, // Public folder
         `/src/templates/${template.filename}`, // Source folder (dev)
@@ -251,14 +254,19 @@ export async function loadTemplate(templateId) {
       return fallback
     }
     
-    throw new Error(`Unsupported template type: ${template.type}`)
+    throw new Error(`Unsupported template type: ${templateType}`)
   } catch (error) {
     console.error('Error loading template:', error)
     const template = getTemplate(templateId)
-    if (template.type === 'svg') {
+    const templateType = template?.type || 'png'
+    if (templateType === 'svg') {
       console.warn('Using fallback template')
       return getFallbackSVG()
     } else {
+      // For PNG templates, if templateContent exists, return it
+      if (template?.templateContent) {
+        return template.templateContent
+      }
       throw error
     }
   }
@@ -314,15 +322,27 @@ export async function populateTemplate(templateContent, certificate, templateId)
       throw new Error('Template content is required. Provide templateContent or templateId.')
     }
     
+    // Determine template type - default to PNG for custom templates
+    let templateType = template.type
+    if (!templateType) {
+      // If template has templateContent (data URL), it's likely a PNG
+      if (template.templateContent || (typeof templateData === 'string' && templateData.startsWith('data:image'))) {
+        templateType = 'png'
+      } else {
+        // Default to PNG for custom templates
+        templateType = 'png'
+      }
+    }
+    
     // Handle PNG templates
-    if (template.type === 'png') {
+    if (templateType === 'png') {
       // Import pdfTemplateUtils for PNG handling
       const { generatePDFFromPNGTemplate } = await import('./pdfTemplateUtils')
       return await generatePDFFromPNGTemplate(templateData, certificate, templateId)
     }
     
     // Handle SVG templates (legacy)
-    if (template.type === 'svg') {
+    if (templateType === 'svg') {
       // Populate SVG with certificate data
       const populatedSVG = populateTemplateSVG(templateData, certificate)
       
@@ -331,7 +351,7 @@ export async function populateTemplate(templateContent, certificate, templateId)
       return pdfBlob
     }
     
-    throw new Error(`Unsupported template type: ${template.type}`)
+    throw new Error(`Unsupported template type: ${templateType}`)
   } catch (error) {
     console.error('Error in populateTemplate:', error)
     throw new Error(`Failed to generate certificate PDF: ${error.message}`)
