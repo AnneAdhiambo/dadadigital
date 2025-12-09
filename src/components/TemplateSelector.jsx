@@ -11,7 +11,10 @@ function TemplateSelector({ selectedTemplate, onSelect, previewData = null, show
   const [loadingPreviews, setLoadingPreviews] = useState({})
 
   useEffect(() => {
-    const templatesList = getAllTemplates()
+    const allTemplates = getAllTemplates()
+    // Filter out base templates (they are not usable templates)
+    const baseTemplateIds = ['achievement', 'minimalist', 'brightwall-achievement']
+    const templatesList = allTemplates.filter(t => !baseTemplateIds.includes(t.id))
     setTemplates(templatesList)
     
     // Load previews for all templates immediately

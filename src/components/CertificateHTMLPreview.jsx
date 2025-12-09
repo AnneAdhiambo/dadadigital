@@ -10,11 +10,12 @@ import './CertificateHTMLPreview.css'
 function CertificateHTMLPreview({ 
   templateId, 
   certificate, 
-  scale = 0.7,
+  scale = 1.0,
   className = '' 
 }) {
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(null)
   const [elements, setElements] = useState([])
+  const [imageDimensions, setImageDimensions] = useState({ width: 1200, height: 800 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -34,6 +35,18 @@ function CertificateHTMLPreview({
         // Load background image
         const imageUrl = await loadTemplate(templateId)
         setBackgroundImageUrl(imageUrl)
+
+        // Load image dimensions from template
+        if (template.imageWidth && template.imageHeight) {
+          setImageDimensions({ width: template.imageWidth, height: template.imageHeight })
+        } else {
+          // Detect dimensions from image if not stored
+          const img = new Image()
+          img.onload = () => {
+            setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight })
+          }
+          img.src = imageUrl
+        }
 
         // Load elements - ONLY use elements array, never convert textPositions
         // This ensures template manager output is exactly what gets rendered
@@ -117,20 +130,38 @@ function CertificateHTMLPreview({
     <div 
       className={`certificate-html-preview ${className}`}
       style={{
-        backgroundImage: `url(${backgroundImageUrl})`,
-        backgroundSize: 'contain',
-        backgroundRepeat: 'no-repeat',
-        backgroundPosition: 'center',
-        width: '1200px',
-        height: '800px',
         position: 'relative',
+        display: 'inline-block',
         transform: `scale(${scale})`,
         transformOrigin: 'top left',
         boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
         border: '2px solid var(--admin-border, #333)',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        margin: 'auto'
       }}
     >
+      <img
+        src={backgroundImageUrl}
+        alt="Certificate template"
+        style={{
+          maxWidth: `${imageDimensions.width}px`,
+          maxHeight: `${imageDimensions.height}px`,
+          width: 'auto',
+          height: 'auto',
+          display: 'block',
+          objectFit: 'contain'
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: `${imageDimensions.width}px`,
+          height: `${imageDimensions.height}px`,
+          pointerEvents: 'none'
+        }}
+      >
       {elements.map(element => {
         if (element.type === 'text') {
           const text = getTextForField(element.field, element)
@@ -216,6 +247,7 @@ function CertificateHTMLPreview({
         }
         return null
       })}
+      </div>
     </div>
   )
 }
