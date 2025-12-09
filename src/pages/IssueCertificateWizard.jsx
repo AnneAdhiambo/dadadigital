@@ -109,11 +109,18 @@ function IssueCertificateWizard() {
       return
     }
 
+    // Navigate to step 4 first to show preview and terminal
+    setCurrentStep(4)
+    
+    // Initialize terminal state
     setIsGenerating(true)
     setNostrStatus('idle')
     setNostrSteps([])
     setNostrProgress(null)
     setPublishedEventId(null)
+
+    // Small delay to ensure step 4 is rendered before starting generation
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     try {
       addNostrStep('Generating certificate...', 'in_progress')
@@ -274,9 +281,6 @@ function IssueCertificateWizard() {
           addNostrStep('Email sending failed', 'error')
         }
       }
-
-      // Move to step 4
-      setCurrentStep(4)
     } catch (error) {
       console.error('Error generating certificate:', error)
       addNostrStep(`Error: ${error.message || 'Failed to generate certificate'}`, 'error')
@@ -562,132 +566,156 @@ function IssueCertificateWizard() {
           </div>
         )}
 
-        {/* Step 4: Download & Terminal */}
+        {/* Step 4: Download & Terminal - Split Screen Layout */}
         {currentStep === 4 && (
-          <div className="wizard-step-content">
-            <h2>Certificate Issued Successfully</h2>
-            <p className="wizard-step-description">Your certificate has been generated and published to Nostr</p>
-            
-            {generatedCertificate && (
-              <div className="success-section">
-                <div className="success-preview">
-                  <h3>Your Certificate</h3>
-                  <div className="wizard-preview-container-large">
+          <div className="wizard-step-content certificate-issued-layout">
+            <div className="certificate-issued-split">
+              {/* Left Side: Large Certificate Preview */}
+              <div className="certificate-preview-panel">
+                <div className="certificate-preview-container-full">
+                  {generatedCertificate ? (
                     <CertificateHTMLPreview
                       templateId={selectedTemplate}
                       certificate={generatedCertificate}
-                      scale={0.6}
+                      scale={1.0}
                     />
-                  </div>
+                  ) : (
+                    <CertificateHTMLPreview
+                      templateId={selectedTemplate}
+                      certificate={{
+                        studentName: formData.studentName || 'Student Name',
+                        courseType: formData.courseType || 'Bitcoin & Blockchain Fundamentals',
+                        cohort: 'Cohort 2025-01',
+                        certificateType: 'Certificate of Completion',
+                        issueDate: formData.issueDate,
+                        instructor: formData.instructor || 'Lead Instructor'
+                      }}
+                      scale={1.0}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Right Side: Action & Status Panel */}
+              <div className="action-status-panel" ref={terminalSectionRef}>
+                {/* Massive Download Button */}
+                {generatedCertificate && (
                   <button
                     onClick={handleDownload}
-                    className="btn-download-cert"
+                    className="btn-download-cert-massive"
                   >
-                    <Download size={18} />
-                    Download Certificate PDF
+                    <Download size={24} />
+                    <span>Download Certificate PDF</span>
                   </button>
-                </div>
+                )}
 
-                {/* Nostr Publishing Terminal */}
-                {(nostrStatus === 'publishing' || nostrStatus === 'success' || nostrStatus === 'error' || isGenerating) && (
-                  <div className="nostr-terminal-column" ref={terminalSectionRef}>
-                    <div className="nostr-terminal-section">
-                      <div className="nostr-terminal-header">
-                        <Zap size={14} style={{ color: nostrStatus === 'success' ? '#10b981' : nostrStatus === 'error' ? '#ef4444' : '#3b82f6' }} />
-                        <span className="nostr-terminal-title">
-                          {nostrStatus === 'publishing' || (isGenerating && !nostrStatus) ? 'PUBLISHING TO NOSTR' : 
-                           nostrStatus === 'success' ? 'PUBLISHED TO NOSTR' : 
-                           nostrStatus === 'error' ? 'PUBLISH ERROR' :
-                           'PROCESSING'}
-                        </span>
-                      </div>
-                      <div className="nostr-terminal-output" ref={terminalRef}>
-                        {nostrSteps.map((step, index) => {
-                          const timestamp = step.timestamp ? new Date(step.timestamp).toLocaleTimeString() : ''
-                          const statusIcon = step.status === 'in_progress' ? '⟳' : 
-                                            step.status === 'completed' ? '✓' : 
-                                            step.status === 'error' ? '✗' : ''
-                          const statusColor = step.status === 'in_progress' ? '#3b82f6' : 
-                                             step.status === 'completed' ? '#10b981' : 
-                                             step.status === 'error' ? '#ef4444' : '#ffffff'
-                          
-                          return (
-                            <div key={index} className={`nostr-terminal-line ${step.status}`}>
-                              <span className="terminal-timestamp">{timestamp}</span>
-                              <span className="terminal-status" style={{ color: statusColor }}>{statusIcon}</span>
-                              <span className="terminal-message">{step.message}</span>
-                            </div>
-                          )
-                        })}
-                        {(nostrStatus === 'publishing' || (isGenerating && !nostrStatus)) && (
-                          <div className="nostr-terminal-line in_progress">
-                            <span className="terminal-cursor">▊</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Event ID Display Section */}
-                      {publishedEventId && (
-                        <div className="nostr-event-info">
-                          <div className="event-id-header">
-                            <CheckCircle size={16} style={{ color: '#10b981' }} />
-                            <span>Event Published Successfully</span>
-                          </div>
-                          <div className="event-id-display">
-                            <div className="event-id-label">Event ID:</div>
-                            <div className="event-id-value" title={publishedEventId}>
-                              {publishedEventId}
-                            </div>
-                            <button 
-                              className="btn-copy-event-id"
-                              onClick={() => {
-                                navigator.clipboard.writeText(publishedEventId)
-                                alert('Event ID copied to clipboard!')
-                              }}
-                              title="Copy Event ID"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                          <div className="event-search-info">
-                            <div className="search-info-title">How to view this event:</div>
-                            <div className="search-info-links">
-                              <a 
-                                href={`https://snort.social/e/${publishedEventId}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="search-link"
-                              >
-                                View on Snort
-                              </a>
-                              <a 
-                                href={`https://damus.io/e/${publishedEventId}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="search-link"
-                              >
-                                View on Damus
-                              </a>
-                              <a 
-                                href={`https://nostr.band/e/${publishedEventId}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="search-link"
-                              >
-                                View on Nostr.band
-                              </a>
-                            </div>
-                            <div className="search-info-hint">
-                              Search for this Event ID in any Nostr client to view the certificate
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                {/* Live Terminal Window */}
+                <div className="live-terminal-window">
+                  <div className="terminal-window-header">
+                    <div className="terminal-window-controls">
+                      <span className="terminal-control-dot terminal-control-close"></span>
+                      <span className="terminal-control-dot terminal-control-minimize"></span>
+                      <span className="terminal-control-dot terminal-control-maximize"></span>
+                    </div>
+                    <div className="terminal-window-title">
+                      <Zap size={12} style={{ color: nostrStatus === 'success' ? '#10b981' : nostrStatus === 'error' ? '#ef4444' : '#3b82f6' }} />
+                      <span>
+                        {nostrStatus === 'publishing' || (isGenerating && !nostrStatus) ? 'PUBLISHING TO NOSTR' : 
+                         nostrStatus === 'success' ? 'PUBLISHED TO NOSTR' : 
+                         nostrStatus === 'error' ? 'PUBLISH ERROR' :
+                         'LIVE TERMINAL'}
+                      </span>
                     </div>
                   </div>
-                )}
+                  <div className="terminal-window-body" ref={terminalRef}>
+                    {nostrSteps.length === 0 && !isGenerating && (
+                      <div className="terminal-log-line">
+                        <span className="terminal-log-prompt">$</span>
+                        <span className="terminal-log-message">Ready to generate certificate...</span>
+                      </div>
+                    )}
+                    {nostrSteps.map((step, index) => {
+                      const timestamp = step.timestamp ? new Date(step.timestamp).toLocaleTimeString() : ''
+                      const statusIcon = step.status === 'in_progress' ? '⟳' : 
+                                        step.status === 'completed' ? '✓' : 
+                                        step.status === 'error' ? '✗' : '→'
+                      const statusColor = step.status === 'in_progress' ? '#3b82f6' : 
+                                         step.status === 'completed' ? '#10b981' : 
+                                         step.status === 'error' ? '#ef4444' : '#a0a0a0'
+                      
+                      return (
+                        <div key={index} className={`terminal-log-line terminal-log-${step.status}`}>
+                          <span className="terminal-log-time">[{timestamp}]</span>
+                          <span className="terminal-log-status" style={{ color: statusColor }}>{statusIcon}</span>
+                          <span className="terminal-log-message">{step.message}</span>
+                        </div>
+                      )
+                    })}
+                    {(nostrStatus === 'publishing' || (isGenerating && !nostrStatus)) && (
+                      <div className="terminal-log-line terminal-log-in_progress">
+                        <span className="terminal-log-prompt">$</span>
+                        <span className="terminal-cursor-blink">▊</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Event ID Display Section */}
+                  {publishedEventId && (
+                    <div className="terminal-event-info">
+                      <div className="terminal-event-header">
+                        <CheckCircle size={14} style={{ color: '#10b981' }} />
+                        <span>EVENT PUBLISHED</span>
+                      </div>
+                      <div className="terminal-event-id-container">
+                        <div className="terminal-event-id-label">Event ID:</div>
+                        <div className="terminal-event-id-value" title={publishedEventId}>
+                          {publishedEventId}
+                        </div>
+                        <button 
+                          className="btn-copy-terminal"
+                          onClick={() => {
+                            navigator.clipboard.writeText(publishedEventId)
+                            alert('Event ID copied to clipboard!')
+                          }}
+                          title="Copy Event ID"
+                        >
+                          COPY
+                        </button>
+                      </div>
+                      <div className="terminal-event-links">
+                        <div className="terminal-event-links-title">VIEW ON:</div>
+                        <div className="terminal-event-links-grid">
+                          <a 
+                            href={`https://snort.social/e/${publishedEventId}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="terminal-event-link"
+                          >
+                            SNORT
+                          </a>
+                          <a 
+                            href={`https://damus.io/e/${publishedEventId}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="terminal-event-link"
+                          >
+                            DAMUS
+                          </a>
+                          <a 
+                            href={`https://nostr.band/e/${publishedEventId}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="terminal-event-link"
+                          >
+                            NOSTR.BAND
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
@@ -712,12 +740,12 @@ function IssueCertificateWizard() {
             {isGenerating ? (
               <>
                 <Loader2 size={18} className="spinning" />
-                Issuing...
+                Processing...
               </>
             ) : (
               <>
                 <Rocket size={18} />
-                Issue Certificate
+                Issue & Continue
               </>
             )}
           </button>
