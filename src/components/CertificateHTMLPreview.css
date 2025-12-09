@@ -1,0 +1,21 @@
+.certificate-html-preview {
+  user-select: none;
+}
+
+.certificate-html-preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: var(--admin-text-secondary);
+  font-size: 14px;
+}
+
+.certificate-html-text {
+  user-select: none;
+}
+
+.certificate-html-signature {
+  user-select: none;
+}
+

@@ -46,6 +46,16 @@ This system provides a secure way to issue and verify digital certificates with:
 3. **Open your browser:**
    Navigate to `http://localhost:5173`
 
+### Environment Variables
+
+Create a `.env` file (not committed to git) with the required secrets:
+
+```
+VITE_NOSTR_PRIVATE_KEY=your_nostr_private_key_value
+```
+
+The `VITE_NOSTR_PRIVATE_KEY` value is written to browser `localStorage` during production runs so the Nostr publishing flow can use it without generating a new key.
+
 ### Build for Production
 
 ```bash

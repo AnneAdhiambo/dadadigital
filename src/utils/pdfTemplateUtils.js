@@ -13,6 +13,9 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 import QRCode from 'qrcode'
+import { getTemplate } from './templateUtils'
+import { getFontFilename } from './fontUtils'
+import { getSignatureById } from './signatureUtils'
 
 /**
  * Load PDF template
@@ -40,27 +43,54 @@ export async function loadPDFTemplate(templatePath) {
 }
 
 /**
- * Load a custom font
+ * Load a custom font from assets
  */
 async function loadCustomFont(pdfDoc, fontName) {
   try {
     console.log(`Attempting to load custom font: ${fontName}`)
     
-    // Determine filename based on font family
-    let filename = `${fontName}.ttf`
-    if (fontName === 'AmsterdamFour') {
-      filename = 'Amsterdam Four_ttf 400.ttf' // User provided specific filename
+    if (!fontName) return null
+    
+    // Get font filename
+    const filename = getFontFilename(fontName)
+    if (!filename) {
+      console.warn(`Could not determine filename for font: ${fontName}`)
+      return null
     }
     
-    // Try loading from templates folder first, then root
-    // Note: User mentioned it's in the template folder
-    const fontUrl = `/templates/${filename}`
+    // Try loading from assets/fonts (Vite handles this)
+    const pathsToTry = [
+      `/src/assets/fonts/${filename}`,
+      `./assets/fonts/${filename}`,
+      `/fonts/${filename}`,
+      `/templates/${filename}` // Fallback to public templates
+    ]
     
-    console.log(`Fetching font from: ${fontUrl}`)
-    const fontBytes = await fetch(fontUrl).then(res => {
-      if (!res.ok) throw new Error(`Failed to load font ${fontName} from ${fontUrl} (Status: ${res.status})`)
-      return res.arrayBuffer()
-    })
+    let fontBytes = null
+    for (const path of pathsToTry) {
+      try {
+        const response = await fetch(path)
+        if (response.ok) {
+          fontBytes = await response.arrayBuffer()
+          break
+        }
+      } catch (e) {
+        continue
+      }
+    }
+    
+    if (!fontBytes) {
+      // Try importing as module (Vite)
+      try {
+        // @vite-ignore - Dynamic font loading is intentional
+        const fontModule = await import(/* @vite-ignore */ `../assets/fonts/${filename}?url`)
+        const response = await fetch(fontModule.default)
+        fontBytes = await response.arrayBuffer()
+      } catch (e) {
+        console.warn(`Could not load font ${fontName} from any path`)
+        return null
+      }
+    }
 
     pdfDoc.registerFontkit(fontkit)
     const customFont = await pdfDoc.embedFont(fontBytes)
@@ -68,16 +98,6 @@ async function loadCustomFont(pdfDoc, fontName) {
     return customFont
   } catch (error) {
     console.warn(`Could not load custom font ${fontName}, falling back to standard font. Error:`, error.message)
-    // Try fallback to root if templates failed?
-    if (fontName === 'AmsterdamFour') {
-       try {
-         console.log('Retrying from root / ...')
-         const rootUrl = '/Amsterdam Four_ttf 400.ttf'
-         const fontBytes = await fetch(rootUrl).then(r => r.arrayBuffer())
-         pdfDoc.registerFontkit(fontkit)
-         return await pdfDoc.embedFont(fontBytes)
-       } catch (e) { console.warn('Root fallback failed', e) }
-    }
     return null
   }
 }
@@ -385,6 +405,541 @@ export async function overlayTextOnPDF(pdfBytes, certificate, textPositions) {
     console.error('Error overlaying text on PDF:', error)
     console.error('Error stack:', error.stack)
     throw new Error(`Failed to overlay text on PDF: ${error.message}`)
+  }
+}
+
+/**
+ * Generate PDF from PNG template image
+ * 
+ * @param {string} templateData - Blob URL of PNG template image (from local /templates/ directory)
+ * @param {object} certificate - Certificate data object
+ * @param {string} templateId - Template ID to get text positions configuration
+ * @param {object} templateConfigOverride - Optional template config to use instead of loading from storage
+ * @returns {Promise<Blob>} - Generated PDF as Blob
+ */
+export async function generatePDFFromPNGTemplate(templateData, certificate, templateId, templateConfigOverride = null) {
+  try {
+    console.log('Generating PDF from PNG template, certificate data:', {
+      studentName: certificate.studentName,
+      courseType: certificate.courseType,
+      cohort: certificate.cohort
+    })
+    
+    // Fetch PNG image from blob URL
+    console.log('Loading PNG image from blob URL...')
+    const imageResponse = await fetch(templateData)
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to load PNG image: ${imageResponse.status} ${imageResponse.statusText}`)
+    }
+    const imageBytes = await imageResponse.arrayBuffer()
+    
+    // Create new PDF document
+    const pdfDoc = await PDFDocument.create()
+    
+    // Embed PNG image
+    const pngImage = await pdfDoc.embedPng(imageBytes)
+    const pngDims = pngImage.scale(1)
+    
+    // Create page with PNG dimensions
+    const page = pdfDoc.addPage([pngDims.width, pngDims.height])
+    const width = pngDims.width
+    const height = pngDims.height
+    console.log(`PNG image size: ${width} x ${height} points`)
+    
+    // Draw PNG as background
+    page.drawImage(pngImage, {
+      x: 0,
+      y: 0,
+      width: width,
+      height: height
+    })
+    
+    // Get template configuration for text positions
+    // Use override if provided (for preview generation), otherwise load from storage
+    const templateConfig = templateConfigOverride || getTemplate(templateId)
+    
+    // Canvas uses fixed dimensions (1200x800), but actual PNG may have different dimensions
+    // We need to scale coordinates from canvas space to actual image space
+    const canvasWidth = 1200  // Fixed canvas width used in TemplateEditor
+    const canvasHeight = 800  // Fixed canvas height used in TemplateEditor
+    const scaleX = width / canvasWidth
+    const scaleY = height / canvasHeight
+    console.log(`Coordinate scaling: canvas (${canvasWidth}x${canvasHeight}) -> PDF (${width}x${height}), scale: (${scaleX.toFixed(3)}, ${scaleY.toFixed(3)})`)
+    
+    // Get text positions - ONLY use elements array, NEVER use textPositions
+    // This ensures template manager output is exactly what gets rendered
+    let textPositions = {}
+    if (templateConfig.elements && templateConfig.elements.length > 0) {
+      // Use ONLY elements array - ignore textPositions completely
+      console.log('Using elements array for template rendering (ignoring textPositions completely)')
+      templateConfig.elements.forEach(element => {
+        if (element.type === 'text' && element.field) {
+          const fieldKey = element.field === 'custom' 
+            ? `custom_${element.id}` 
+            : element.field
+          textPositions[fieldKey] = {
+            x: element.x * scaleX,  // Scale X coordinate
+            y: element.y * scaleY,  // Scale Y coordinate
+            fontSize: element.fontSize * Math.min(scaleX, scaleY),  // Scale font size proportionally
+            fontWeight: element.fontWeight || 'normal',
+            fontFamily: element.fontFamily || templateConfig.fontName || 'Arial',
+            fill: element.color || '#000000',
+            align: element.align || 'center',  // Default to center alignment
+            customText: element.field === 'custom' ? element.customText : undefined
+          }
+        }
+      })
+    } else {
+      // NO fallback to textPositions - if no elements, render nothing
+      // This ensures only what's in template manager gets rendered
+      console.log('Template has no elements array - rendering only background image (no text)')
+    }
+    console.log(`Text positions config (scaled):`, textPositions)
+    
+    // Embed fonts
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const helveticaBoldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+    const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman)
+    const timesRomanBoldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold)
+    const timesRomanItalicFont = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic)
+    
+    // Cache for custom fonts to avoid reloading
+    const customFonts = {}
+    
+    // Helper function to get font
+    const getFont = async (fontFamily, fontWeight) => {
+      const family = fontFamily?.toLowerCase() || ''
+      const weight = fontWeight?.toLowerCase() || 'normal'
+      
+      // Check for custom fonts first (handle various font name formats)
+      const fontName = fontFamily || templateConfig.fontName || ''
+      
+      // Web fonts (Montserrat, Poppins, Open Sans) fall back to Helvetica for PDF
+      const webFonts = ['montserrat', 'poppins', 'open sans']
+      if (webFonts.includes(family)) {
+        // Use Helvetica as fallback for web fonts in PDF
+        return weight === 'bold' || weight === '700' || weight === '600' 
+          ? helveticaBoldFont 
+          : helveticaFont
+      }
+      
+      if (fontName && (fontName.includes('Amsterdam') || fontName.includes('BrightWall') || fontName.includes('Brightwall'))) {
+        // Use the actual font name as the key for caching
+        const fontKey = fontName
+        if (!customFonts[fontKey]) {
+          const loaded = await loadCustomFont(pdfDoc, fontName)
+          if (loaded) customFonts[fontKey] = loaded
+        }
+        if (customFonts[fontKey]) return customFonts[fontKey]
+      }
+      
+      if (family.includes('times') || family.includes('serif') || family.includes('roman')) {
+        if (family.includes('italic')) return timesRomanItalicFont
+        return weight === 'bold' ? timesRomanBoldFont : timesRomanFont
+      }
+      return weight === 'bold' ? helveticaBoldFont : helveticaFont
+    }
+    
+    // Helper function to get color
+    const getColor = (colorConfig) => {
+      if (!colorConfig) return rgb(0, 0, 0)
+      if (typeof colorConfig === 'string') {
+        // Parse hex color like "#000000" or "fill" property
+        if (colorConfig.startsWith('#')) {
+          const r = parseInt(colorConfig.slice(1, 3), 16) / 255
+          const g = parseInt(colorConfig.slice(3, 5), 16) / 255
+          const b = parseInt(colorConfig.slice(5, 7), 16) / 255
+          return rgb(r, g, b)
+        }
+        // Handle color names
+        if (colorConfig === 'black' || colorConfig === '#000000') return rgb(0, 0, 0)
+        if (colorConfig === 'gray' || colorConfig === '#666666') return rgb(0.4, 0.4, 0.4)
+      }
+      if (typeof colorConfig === 'object' && colorConfig.r !== undefined) {
+        return rgb(colorConfig.r, colorConfig.g, colorConfig.b)
+      }
+      return rgb(0, 0, 0)
+    }
+    
+    // Helper function to draw centered text
+    const drawCenteredText = (page, text, x, y, fontSize, font, color) => {
+      const textWidth = font.widthOfTextAtSize(text, fontSize)
+      page.drawText(text, {
+        x: x - textWidth / 2,
+        y: y,
+        size: fontSize,
+        font: font,
+        color: color
+      })
+    }
+    
+    // Prepare replacement values
+    const issueDate = certificate.issueDate 
+      ? new Date(certificate.issueDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+    
+    // Helper to safely draw text with coordinate conversion
+    const safeDrawText = async (pos, text, label) => {
+      if (!pos) {
+        console.warn(`No position config for ${label}`)
+        return false
+      }
+      if (!text || text.trim() === '') {
+        console.warn(`No text provided for ${label}`)
+        return false
+      }
+      
+      // PDF coordinates: (0,0) is bottom-left, y increases upward
+      // Canvas uses middle baseline (textBaseline: 'middle'), PDF uses bottom baseline
+      // Positions are given as top-down (y from top), so convert: pdfY = height - pos.y
+      // Note: pos.y is already scaled from canvas coordinates to PDF coordinates
+      // Canvas y is at text center, PDF y is at baseline, so we need a small adjustment
+      const fontSize = pos.fontSize || pos.size || 12
+      // Adjust for baseline: canvas middle -> PDF baseline (approximately fontSize * 0.4)
+      const pdfY = height - pos.y + (fontSize * 0.4)
+      
+      // Handle alignment - positions are already scaled, so use them directly
+      let xPos = pos.x
+      if (pos.align === 'center') {
+        // For center alignment, use the actual center of the PDF
+        xPos = width / 2
+      } else if (pos.align === 'left') {
+        // For left alignment, use the x position as-is
+        xPos = pos.x
+      } else if (pos.align === 'right') {
+        // For right alignment, use the x position as-is (will be handled in drawing)
+        xPos = pos.x
+      } else {
+        // Default: assume center if x is close to center (within 5% of width)
+        const centerThreshold = width * 0.05
+        if (Math.abs(pos.x - width / 2) < centerThreshold) {
+          xPos = width / 2
+          console.log(`Auto-centering ${label} (x=${pos.x.toFixed(1)} is near center)`)
+        } else {
+          xPos = pos.x
+        }
+      }
+      
+      // Validate coordinates
+      if (pdfY < 0 || pdfY > height) {
+        console.warn(`Y position (${pos.y} -> PDF: ${pdfY}) is outside page bounds (height: ${height})`)
+        return false
+      }
+      
+      const font = await getFont(pos.fontFamily || pos.font, pos.fontWeight || pos.weight)
+      const color = getColor(pos.color || pos.fill)
+      
+      try {
+        if (pos.align === 'center' || (pos.x && Math.abs(pos.x - width / 2) < 50)) {
+          drawCenteredText(page, text, xPos, pdfY, fontSize, font, color)
+        } else if (pos.align === 'right') {
+          const textWidth = font.widthOfTextAtSize(text, fontSize)
+          page.drawText(text, {
+            x: xPos - textWidth,
+            y: pdfY,
+            size: fontSize,
+            font: font,
+            color: color
+          })
+        } else {
+          page.drawText(text, {
+            x: xPos,
+            y: pdfY,
+            size: fontSize,
+            font: font,
+            color: color
+          })
+        }
+        console.log(`✓ Overlaid ${label}: "${text}" at (${xPos.toFixed(1)}, ${pdfY.toFixed(1)}) [from top: ${pos.y}], fontSize: ${fontSize}`)
+        return true
+      } catch (drawError) {
+        console.error(`Error drawing text for ${label}:`, drawError)
+        return false
+      }
+    }
+    
+    // Overlay certificate text using template text positions
+    console.log('=== OVERLAYING CERTIFICATE TEXT ===')
+    console.log('Certificate data:', certificate)
+    console.log('Template elements:', templateConfig.elements)
+    
+    // If template uses elements array, render ALL elements exactly as defined in template manager
+    if (templateConfig.elements && templateConfig.elements.length > 0) {
+      console.log('Rendering all elements from template manager')
+      
+      // Define placeholder text for blueprint mode (templates should always render)
+      const placeholders = {
+        studentName: 'Student Name',
+        courseType: 'Course Type',
+        cohort: 'Cohort 2025-01',
+        certificateType: 'Certificate of Completion',
+        issueDate: issueDate, // Use formatted date as placeholder
+        signerName: 'Lead Instructor',
+        signerTitle: 'Course Director'
+      }
+      
+      // Process all text elements from the template manager
+      // ALWAYS render elements - templates act as blueprints showing where data goes
+      for (const element of templateConfig.elements) {
+        if (element.type === 'text' && element.field) {
+          // Get the text value - use certificate data if available, otherwise use placeholder
+          let textValue = null
+          
+          if (element.field === 'custom') {
+            // Custom text - always use the customText value (blueprint shows custom text)
+            textValue = element.customText || 'Custom Text'
+          } else {
+            // Standard field - get value from certificate data or use placeholder
+            const fieldValue = certificate[element.field]
+            
+            if (fieldValue) {
+              // Format the value based on field type
+              if (element.field === 'issueDate') {
+                textValue = issueDate
+              } else if (element.field === 'cohort') {
+                // Don't add "Cohort:" prefix - use as is
+                textValue = fieldValue
+              } else {
+                textValue = fieldValue
+              }
+            } else {
+              // No certificate data - use placeholder to show blueprint
+              textValue = placeholders[element.field] || 'Sample Text'
+            }
+          }
+          
+          // ALWAYS render - templates are blueprints that show where data will go
+          const fieldKey = element.field === 'custom' 
+            ? `custom_${element.id}` 
+            : element.field
+          
+          // Ensure textValue is never null/undefined - always use placeholder if missing
+          if (!textValue) {
+            textValue = placeholders[element.field] || element.customText || 'Sample Text'
+          }
+          
+          // Render if textPositions exists for this fieldKey (it should, since we created it from elements)
+          if (textPositions[fieldKey]) {
+            await safeDrawText(
+              textPositions[fieldKey],
+              textValue,
+              `${element.field} (from template manager - blueprint mode)`
+            )
+          } else {
+            console.warn(`Missing textPositions for fieldKey: ${fieldKey}, element:`, element)
+          }
+        }
+      }
+    } else {
+      // Legacy mode: use hardcoded field rendering for backward compatibility
+      console.log('Using legacy textPositions rendering')
+      const positions = textPositions
+      
+      // Draw certificate type (if configured)
+      if (positions.certificateType && certificate.certificateType) {
+        await safeDrawText(positions.certificateType, certificate.certificateType, 'certificate type')
+      }
+      
+      // Draw student name (required)
+      if (positions.studentName && certificate.studentName) {
+        await safeDrawText(positions.studentName, certificate.studentName, 'student name')
+      }
+      
+      // Draw course type (required)
+      if (positions.courseType && certificate.courseType) {
+        await safeDrawText(positions.courseType, certificate.courseType, 'course name')
+      }
+      
+      // Draw cohort (if configured)
+      if (positions.cohort && certificate.cohort) {
+        const cohortText = certificate.cohort.startsWith('Cohort') 
+          ? certificate.cohort 
+          : `Cohort: ${certificate.cohort}`
+        await safeDrawText(positions.cohort, cohortText, 'cohort')
+      }
+      
+      // Draw issue date (if configured)
+      if (positions.issueDate && certificate.issueDate) {
+        await safeDrawText(positions.issueDate, issueDate, 'issue date')
+      }
+      
+      // Draw signer name (if configured)
+      if (positions.signerName && certificate.instructor) {
+        await safeDrawText(positions.signerName, certificate.instructor, 'signer name')
+      }
+      
+      // Draw signer title (if configured)
+      if (positions.signerTitle && certificate.instructor) {
+        const signerTitle = certificate.signerTitle || 'Lead Instructor'
+        await safeDrawText(positions.signerTitle, signerTitle, 'signer title')
+      }
+    }
+    
+    // Handle signature elements (if template uses elements array)
+    if (templateConfig.elements && templateConfig.elements.length > 0) {
+      const signatureElements = templateConfig.elements.filter(el => el.type === 'signature')
+      console.log(`Found ${signatureElements.length} signature element(s) to render`)
+      
+      for (const sigElement of signatureElements) {
+        try {
+          let signatureData = sigElement.signatureData
+          
+          // If signatureData is not directly on element, try to load it from signatureId
+          if (!signatureData && sigElement.signatureId) {
+            console.log(`Loading signature by ID: ${sigElement.signatureId}`)
+            const signature = getSignatureById(sigElement.signatureId)
+            if (signature && signature.signatureData) {
+              signatureData = signature.signatureData
+              console.log(`✓ Signature loaded from ID: ${sigElement.signatureId}`)
+            } else {
+              console.warn(`Signature not found for ID: ${sigElement.signatureId}`)
+            }
+          }
+          
+          if (signatureData) {
+            let sigImageBytes = null
+            
+            // Handle base64 data URLs (data:image/png;base64,...)
+            if (signatureData.startsWith('data:image')) {
+              console.log(`Loading signature from base64 data URL`)
+              // Extract base64 data from data URL
+              const base64Data = signatureData.split(',')[1]
+              if (base64Data) {
+                // Convert base64 to ArrayBuffer
+                const binaryString = atob(base64Data)
+                const bytes = new Uint8Array(binaryString.length)
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i)
+                }
+                sigImageBytes = bytes.buffer
+              } else {
+                console.warn('Invalid base64 data URL format')
+              }
+            } else {
+              // Handle regular URL
+              console.log(`Loading signature image from URL: ${signatureData.substring(0, 50)}...`)
+              try {
+                const sigImageResponse = await fetch(signatureData)
+                if (sigImageResponse.ok) {
+                  sigImageBytes = await sigImageResponse.arrayBuffer()
+                } else {
+                  console.warn(`Failed to fetch signature image: ${sigImageResponse.status} ${sigImageResponse.statusText}`)
+                }
+              } catch (fetchError) {
+                console.error('Error fetching signature image:', fetchError)
+              }
+            }
+            
+            if (sigImageBytes) {
+              try {
+                const sigImage = await pdfDoc.embedPng(sigImageBytes)
+                
+                // Scale signature dimensions
+                const sigWidth = (sigElement.width || 200) * scaleX
+                const sigHeight = (sigElement.height || 80) * scaleY
+                const sigX = sigElement.x * scaleX - sigWidth / 2  // Center the signature
+                const sigY = height - (sigElement.y * scaleY) - sigHeight / 2  // Convert Y and center
+                
+                page.drawImage(sigImage, {
+                  x: sigX,
+                  y: sigY,
+                  width: sigWidth,
+                  height: sigHeight
+                })
+                
+                console.log(`✓ Signature embedded at (${sigX.toFixed(1)}, ${sigY.toFixed(1)}), size: ${sigWidth.toFixed(1)}x${sigHeight.toFixed(1)}`)
+              } catch (embedError) {
+                console.error('Error embedding signature image:', embedError)
+              }
+            }
+          } else {
+            console.warn(`Signature element has no signatureData or signatureId:`, sigElement)
+          }
+        } catch (sigError) {
+          console.error('Failed to embed signature:', sigError)
+        }
+      }
+    }
+    
+    // Generate and embed QR code for verification
+    try {
+      const verificationUrl = `${window.location.origin}/verify/${certificate.id}`
+      console.log('Generating QR code for:', verificationUrl)
+      
+      // Generate QR code as PNG data URL
+      const qrCodeDataUrl = await QRCode.toDataURL(verificationUrl, {
+        width: 200,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      })
+      
+      // Convert data URL to PNG image
+      const qrCodeImageBytes = await fetch(qrCodeDataUrl).then(res => res.arrayBuffer())
+      const qrCodeImage = await pdfDoc.embedPng(qrCodeImageBytes)
+      
+      // Calculate QR code size (make it smaller, about 70-80 points to fit nicely)
+      const qrSize = 70
+      const qrX = 50 // Left side margin (50 points from left edge)
+      const qrY = 50 // Bottom-left area (50 points from bottom)
+      
+      // Draw QR code on the bottom-left corner
+      page.drawImage(qrCodeImage, {
+        x: qrX,
+        y: qrY,
+        width: qrSize,
+        height: qrSize
+      })
+      
+      console.log(`✓ QR code embedded at bottom-left (${qrX}, ${qrY}), size: ${qrSize}x${qrSize}`)
+    } catch (qrError) {
+      console.warn('Failed to generate QR code:', qrError)
+      // Continue without QR code if generation fails
+    }
+    
+    console.log('=== OVERLAY COMPLETE ===')
+    
+    // Set deterministic metadata to ensure consistent hashing
+    // Use a fixed date so PDFs with same content have same hash
+    const fixedDate = new Date('2025-01-01T00:00:00Z')
+    pdfDoc.setCreationDate(fixedDate)
+    pdfDoc.setModificationDate(fixedDate)
+    // Set title to certificate ID for consistency
+    pdfDoc.setTitle(`Certificate ${certificate.id}`)
+    pdfDoc.setAuthor('Bitcoin Dada')
+    pdfDoc.setSubject('Digital Certificate')
+    pdfDoc.setProducer('Bitcoin Dada Certificate System')
+    
+    // Serialize PDF to bytes
+    console.log('Saving PDF with text overlay...')
+    const savedPdfBytes = await pdfDoc.save({
+      useObjectStreams: false // Disable object streams for more deterministic output
+    })
+    console.log('PDF saved, size:', savedPdfBytes.length, 'bytes')
+    
+    // Convert to Blob
+    const blob = new Blob([savedPdfBytes], { type: 'application/pdf' })
+    console.log('PDF Blob created, size:', blob.size, 'bytes')
+    
+    if (blob.size === 0) {
+      throw new Error('Generated PDF is empty')
+    }
+    
+    return blob
+  } catch (error) {
+    console.error('Error generating PDF from PNG template:', error)
+    console.error('Error stack:', error.stack)
+    throw new Error(`Failed to generate PDF from PNG template: ${error.message}`)
   }
 }
 

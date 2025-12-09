@@ -11,11 +11,15 @@ import {
   ArrowRight, 
   Lock, 
   Database,
-  UploadCloud
+  UploadCloud,
+  Cpu,
+  Network,
+  Server
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LogoCarousel from '../components/LogoCarousel';
 import { verifyCertificate, getStoredCertificates, hashPDF, verifyPDFHashByHash } from '../utils/certificateUtils';
 import { populateTemplate } from '../utils/templateUtils';
 import './LandingPage.css';
@@ -268,6 +272,64 @@ const Workflow = () => {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const TechnologySection = () => {
+  return (
+    <section id="technology" className="landing-technology">
+      <div className="technology-container">
+        <div className="technology-header">
+          <div className="technology-badge">
+            <Cpu size={16} />
+            <span>Our Technology</span>
+          </div>
+          <h2 className="technology-title">Built on Proven Technology</h2>
+          <p className="technology-subtitle">
+            We combine PostgreSQL for reliable storage, Nostr protocol for decentralization, and SHA-256 encryption for security.
+          </p>
+        </div>
+
+        <div className="technology-grid">
+          <div className="technology-card">
+            <div className="technology-icon-wrapper">
+              <Database size={32} />
+            </div>
+            <h3>PostgreSQL Database</h3>
+            <p>
+              Enterprise-grade relational database ensuring ACID compliance, data integrity, and reliable certificate storage.
+            </p>
+          </div>
+
+          <div className="technology-card">
+            <div className="technology-icon-wrapper">
+              <Network size={32} />
+            </div>
+            <h3>Nostr Protocol</h3>
+            <p>
+              Decentralized, censorship-resistant protocol publishing certificates across 7 global relays for maximum redundancy.
+            </p>
+          </div>
+
+          <div className="technology-card">
+            <div className="technology-icon-wrapper">
+              <Lock size={32} />
+            </div>
+            <h3>SHA-256 Encryption</h3>
+            <p>
+              The same cryptographic hash function securing Bitcoin, ensuring tamper-proof certificate verification.
+            </p>
+          </div>
+        </div>
+
+        <div className="technology-cta">
+          <Link to="/blog/technology" className="technology-link">
+            Learn More About Our Technology
+            <ArrowRight size={18} />
+          </Link>
         </div>
       </div>
     </section>
@@ -697,8 +759,8 @@ function LandingPage() {
     // Handle hash navigation with smooth scroll
     const handleHashChange = () => {
       const hash = window.location.hash;
-      if (hash === '#verify') {
-        const element = document.getElementById('verify');
+      if (hash === '#verify' || hash === '#technology') {
+        const element = document.getElementById(hash.substring(1));
         if (element) {
           setTimeout(() => {
             element.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -723,16 +785,13 @@ function LandingPage() {
         
         <div className="landing-trust-bar">
           <div className="trust-bar-container">
-            <img src="https://btcdada.com/wp-content/uploads/2023/12/1.png" alt="Blockchain.com" className="trust-logo" />
-            <img src="https://btcdada.com/wp-content/uploads/2023/12/2.png" alt="Binance Academy" className="trust-logo" />
-            <img src="https://btcdada.com/wp-content/uploads/2023/12/3.png" alt="Ethereum Foundation" className="trust-logo" />
-            <img src="https://btcdada.com/wp-content/uploads/2025/02/Trezor.png" alt="Trezor" className="trust-logo" />
-            <img src="https://btcdada.com/wp-content/uploads/2025/02/Bitnob.png" alt="Bitnob" className="trust-logo" />
+            <LogoCarousel columns={3} />
           </div>
         </div>
 
         <Features />
         <Workflow />
+        <TechnologySection />
         <VerifySection />
       </main>
       <Footer />

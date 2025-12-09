@@ -1,0 +1,114 @@
+.signature-capture-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.signature-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--public-text, var(--admin-text));
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.signature-label .optional {
+  color: var(--public-text-secondary, var(--admin-text-secondary));
+  font-weight: normal;
+  text-transform: none;
+  font-size: 0.8125rem;
+  margin-left: 0.25rem;
+}
+
+.signature-canvas-wrapper {
+  position: relative;
+  border: 1px solid var(--public-border, var(--admin-border));
+  border-radius: 0.75rem;
+  background: var(--public-card, var(--admin-card));
+  padding: 0.5rem;
+  cursor: crosshair;
+  transition: border-color 0.2s ease;
+}
+
+.signature-canvas-wrapper:hover {
+  border-color: var(--binance-yellow);
+}
+
+.signature-canvas {
+  display: block;
+  width: 100%;
+  height: 150px;
+  cursor: crosshair;
+  touch-action: none;
+  border-radius: 0.5rem;
+  background: #ffffff !important;
+  transition: background-color 0.3s ease;
+}
+
+.signature-clear-btn {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--public-border);
+  background: var(--public-card);
+  color: var(--public-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.signature-clear-btn:hover {
+  background: var(--public-bg-secondary);
+  border-color: var(--binance-yellow);
+  color: var(--binance-yellow);
+  transform: scale(1.1);
+}
+
+.signature-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.signature-reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border: 1px solid var(--public-border);
+  border-radius: 0.75rem;
+  background: var(--public-card);
+  color: var(--public-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.signature-reset-btn:hover:not(:disabled) {
+  background: var(--public-bg-secondary);
+  border-color: var(--binance-yellow);
+  color: var(--binance-yellow);
+}
+
+.signature-reset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.signature-hint {
+  font-size: 0.8125rem;
+  color: var(--public-text-secondary, var(--admin-text-secondary));
+  opacity: 0.7;
+}
+
+

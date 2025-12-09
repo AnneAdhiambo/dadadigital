@@ -565,9 +565,8 @@
   margin: 0 auto;
   padding: 0 1.5rem;
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: 3rem;
+  align-items: center;
 }
 
 .trust-logo {
@@ -802,6 +801,140 @@
 .step-text {
   font-size: 0.875rem;
   color: var(--public-text-secondary);
+}
+
+/* Technology Section */
+.landing-technology {
+  padding: 6rem 0;
+  background: var(--public-bg);
+  position: relative;
+}
+
+.technology-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.technology-header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.technology-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background: rgba(247, 147, 26, 0.1);
+  color: var(--binance-yellow);
+  font-size: 0.875rem;
+  font-weight: bold;
+  border: 1px solid rgba(247, 147, 26, 0.2);
+  margin-bottom: 1.5rem;
+}
+
+.technology-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--public-text);
+  margin-bottom: 1rem;
+  letter-spacing: -0.025em;
+}
+
+@media (min-width: 768px) {
+  .technology-title {
+    font-size: 3rem;
+  }
+}
+
+.technology-subtitle {
+  font-size: 1.125rem;
+  color: var(--public-text-secondary);
+  line-height: 1.75;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.technology-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+@media (min-width: 768px) {
+  .technology-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.technology-card {
+  background: var(--public-card);
+  border: 1px solid var(--public-border);
+  border-radius: 1rem;
+  padding: 2.5rem;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.technology-card:hover {
+  border-color: var(--binance-yellow);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.technology-icon-wrapper {
+  width: 4rem;
+  height: 4rem;
+  background: rgba(247, 147, 26, 0.1);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--binance-yellow);
+  margin: 0 auto 1.5rem;
+}
+
+.technology-card h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--public-text);
+  margin-bottom: 1rem;
+}
+
+.technology-card p {
+  font-size: 0.9375rem;
+  color: var(--public-text-secondary);
+  line-height: 1.75;
+  margin: 0;
+}
+
+.technology-cta {
+  text-align: center;
+  margin-top: 3rem;
+}
+
+.technology-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--binance-yellow);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.125rem;
+  padding: 1rem 2rem;
+  border: 2px solid var(--binance-yellow);
+  border-radius: 0.75rem;
+  transition: all 0.3s;
+}
+
+.technology-link:hover {
+  background: var(--binance-yellow);
+  color: black;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(247, 147, 26, 0.3);
 }
 
 /* Verify Section */

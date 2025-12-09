@@ -1,7 +1,9 @@
 .settings {
-  max-width: 900px;
-  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--admin-bg);
   color: var(--admin-text);
+  padding: 2rem;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .settings-header {
@@ -10,11 +12,17 @@
   border-bottom: 1px solid var(--admin-border);
 }
 
+.settings-header .subtitle {
+  font-size: 1rem;
+  color: var(--admin-text-secondary);
+}
+
 .settings-header h1 {
   font-size: 2rem;
-  font-weight: 700;
-  color: var(--admin-text);
+  font-weight: 800;
+  color: var(--admin-accent);
   margin-bottom: 0.5rem;
+  letter-spacing: -0.025em;
 }
 
 .settings-header .subtitle {

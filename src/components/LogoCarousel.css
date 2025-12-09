@@ -1,0 +1,80 @@
+.logo-carousel-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem 0;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.logo-column {
+  position: relative;
+  height: 3rem;
+  width: 7rem;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .logo-carousel-container {
+    gap: 2rem;
+  }
+  
+  .logo-column {
+    height: 4rem;
+    width: 10rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .logo-column {
+    height: 5rem;
+    width: 12rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .logo-column {
+    height: 6rem;
+    width: 14rem;
+  }
+}
+
+.logo-item {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-image {
+  height: auto;
+  width: auto;
+  max-height: 80%;
+  max-width: 80%;
+  object-fit: contain;
+  opacity: 1;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.logo-image:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
+/* Dark theme adjustments */
+[data-theme="dark"] .logo-image,
+.dark .logo-image {
+  opacity: 1;
+}
+
+[data-theme="dark"] .logo-image:hover,
+.dark .logo-image:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+

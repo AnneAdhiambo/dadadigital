@@ -141,22 +141,10 @@ function Dashboard() {
   }
 
   const handleSendEmail = async () => {
-    console.log('📧 handleSendEmail called:', {
-      emailModal: emailModal,
-      emailValue: emailModal?.email,
-      emailTrimmed: emailModal?.email?.trim(),
-      hasEmail: !!emailModal?.email,
-      emailLength: emailModal?.email?.length
-    })
-    
-    if (!emailModal || !emailModal.email || !emailModal.email.trim()) {
-      console.error('❌ Email validation failed:', {
-        emailModal: emailModal,
-        emailValue: emailModal?.email
-      })
+    if (!emailModal || !emailModal.email) {
       setEmailStatus({
         success: false,
-        message: 'Please enter a valid email address'
+        message: 'Please enter an email address'
       })
       return
     }
@@ -173,17 +161,9 @@ function Dashboard() {
     setEmailStatus(null)
 
     try {
-      const emailToSend = emailModal.email.trim()
-      console.log('📤 Calling sendCertificateEmail with:', {
-        certificate: emailModal.certificate,
-        email: emailToSend,
-        emailType: typeof emailToSend,
-        templateId: emailModal.certificate.templateId || 'minimalist'
-      })
-      
       const result = await sendCertificateEmail(
         emailModal.certificate,
-        emailToSend,
+        emailModal.email,
         emailModal.certificate.templateId || 'minimalist'
       )
 

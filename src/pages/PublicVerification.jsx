@@ -3,14 +3,11 @@ import { useParams, Link } from 'react-router-dom'
 import { verifyCertificate, getStoredCertificates, hashPDF, verifyPDFHashByHash } from '../utils/certificateUtils'
 import { populateTemplate } from '../utils/templateUtils'
 import LoadingSpinner from '../components/LoadingSpinner'
-import ThemeToggle from '../components/ThemeToggle'
-import { useTheme } from '../contexts/ThemeContext'
 import { ShieldCheck, UploadCloud, CheckCircle, X, ArrowRight } from 'lucide-react'
 import './PublicVerification.css'
 
 function PublicVerification() {
   const { certificateId } = useParams()
-  const { theme } = useTheme()
   const [searchQuery, setSearchQuery] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
   const [verificationResult, setVerificationResult] = useState(null)
@@ -175,21 +172,13 @@ function PublicVerification() {
   }
 
   return (
-    <div className="public-verify-container">
-      <header className="public-header">
-        <div className="header-content">
-          <Link to="/" className="header-logo-link">
-            <img 
-              src={theme === 'dark' ? '/logo-dark.png' : '/logo.png'} 
-              alt="Bitcoin Dada Logo" 
-              className="header-logo-image"
-            />
-            <span className="header-title">Bitcoin <span className="header-title-accent">Dada</span></span>
-          </Link>
-        </div>
-      </header>
+    <div className="verify-page-container">
+      <div className="verify-header">
+        <h1>Verify Certificate</h1>
+        <p className="verify-subtitle">Verify certificate authenticity by ID or document upload</p>
+      </div>
 
-      <main className="verify-main">
+      <div className="verify-content">
         <div className="verify-card">
           <div className="card-header">
             <h1>Verify Certificate Authenticity</h1>
@@ -345,15 +334,7 @@ function PublicVerification() {
           )}
 
         </div>
-      </main>
-      
-      <footer className="public-footer">
-        <div className="footer-content">
-          <p>© {new Date().getFullYear()} Bitcoin Dada Digital Systems. All rights reserved.</p>
-          <Link to="/admin/login" className="admin-link">Admin Login</Link>
-        </div>
-      </footer>
-      <ThemeToggle variant="floating" />
+      </div>
     </div>
   )
 }

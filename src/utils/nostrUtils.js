@@ -11,7 +11,10 @@ export const STORAGE_KEY_NAME = 'nostr_private_key';
 
 
 // Nostr relays for publishing
+// NOTE: Yakihonne relays are required for publishing to the Yakihonne platform
 const RELAYS = [
+  'wss://nostr-01.yakihonne.com',  // Yakihonne strfry relay-0 (REQUIRED)
+  'wss://nostr-02.yakihonne.com',  // Yakihonne strfry relay-1 (REQUIRED)
   'wss://relay.damus.io',
   'wss://relay.primal.net',
   'wss://nos.lol',
@@ -213,14 +216,6 @@ Verify: ${window.location.origin}/verify?hash=${certificate.pdfHash}
   console.log('   Kind:', eventTemplate.kind, '(Text Note)');
   console.log('   Relays:', RELAYS.length);
   
-  if (onProgress) {
-    onProgress({
-      step: 'signing',
-      message: 'Signing event...',
-      status: 'in_progress'
-    });
-  }
-  
   // Sign the event
   const signedEvent = finalizeEvent(eventTemplate, privKey);
   
@@ -247,39 +242,30 @@ Verify: ${window.location.origin}/verify?hash=${certificate.pdfHash}
   const publishPromises = RELAYS.map(async (relayUrl, index) => {
     let relay = null;
     try {
-      // Extract full relay name for display
-      const relayDomain = relayUrl.replace('wss://', '');
-      const relayName = relayDomain.split('.')[0];
-      const fullRelayName = relayDomain.split('/')[0]; // Get domain without path
-      
-      console.log(`   [${index + 1}/${RELAYS.length}] Connecting to ${fullRelayName}...`);
+      const relayName = relayUrl.replace('wss://', '').split('.')[0];
+      console.log(`   Publishing to ${relayName}...`);
       
       if (onProgress) {
         onProgress({
           step: 'publishing',
-          message: `[${index + 1}/${RELAYS.length}] Connecting to ${fullRelayName}...`,
+          message: `Connecting to ${relayName} (${index + 1}/${RELAYS.length})...`,
           status: 'in_progress',
           currentRelay: relayUrl,
-          relayName: fullRelayName,
           relayIndex: index
         });
       }
       
       relay = await Relay.connect(relayUrl);
-      console.log(`   [${index + 1}/${RELAYS.length}] Connected to ${fullRelayName}`);
       
       // Wait for relay to be ready
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      console.log(`   [${index + 1}/${RELAYS.length}] Publishing to ${fullRelayName}...`);
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       if (onProgress) {
         onProgress({
           step: 'publishing',
-          message: `[${index + 1}/${RELAYS.length}] Publishing to ${fullRelayName}...`,
+          message: `Publishing to ${relayName}...`,
           status: 'in_progress',
           currentRelay: relayUrl,
-          relayName: fullRelayName,
           relayIndex: index
         });
       }
@@ -288,39 +274,32 @@ Verify: ${window.location.origin}/verify?hash=${certificate.pdfHash}
       await relay.publish(signedEvent);
       
       // Give relay time to process
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log(`   [${index + 1}/${RELAYS.length}] ✓ Published to ${fullRelayName}`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       if (onProgress) {
         onProgress({
           step: 'publishing',
-          message: `[${index + 1}/${RELAYS.length}] ✓ Published to ${fullRelayName}`,
+          message: `Published to ${relayName} ✓`,
           status: 'completed',
           currentRelay: relayUrl,
-          relayName: fullRelayName,
           relayIndex: index,
           success: true
         });
       }
       
       await relay.close();
+      
+      console.log(`   ✓ Published to ${relayName}`);
       return { relay: relayUrl, success: true };
     } catch (error) {
       console.error(`   ✗ Failed to publish to ${relayUrl}:`, error.message || error);
       
-      const relayDomain = relayUrl.replace('wss://', '');
-      const fullRelayName = relayDomain.split('/')[0];
-      
-      console.log(`   [${index + 1}/${RELAYS.length}] ✗ Failed to publish to ${fullRelayName}: ${error.message || error}`);
-      
       if (onProgress) {
         onProgress({
           step: 'publishing',
-          message: `[${index + 1}/${RELAYS.length}] ✗ Failed to publish to ${fullRelayName}`,
+          message: `Failed to publish to ${relayUrl.replace('wss://', '').split('.')[0]}`,
           status: 'error',
           currentRelay: relayUrl,
-          relayName: fullRelayName,
           relayIndex: index,
           error: error.message || String(error)
         });

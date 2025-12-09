@@ -172,6 +172,32 @@
   gap: 0.5rem;
 }
 
+.template-manager-link-section {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.template-manager-info {
+  margin: 0;
+  color: var(--admin-text-secondary, #666666);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.template-manager-link {
+  color: var(--admin-accent, #f0b400);
+  text-decoration: underline;
+  font-weight: 500;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.template-manager-link:hover {
+  color: var(--admin-accent-hover, #e0a400);
+}
+
 @media (max-width: 768px) {
   .templates-grid {
     grid-template-columns: 1fr;

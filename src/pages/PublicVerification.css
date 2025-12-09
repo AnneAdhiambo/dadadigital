@@ -1,90 +1,56 @@
-.public-verify-container {
+.verify-page-container {
   min-height: 100vh;
-  background-color: var(--public-bg);
-  font-family: 'Manrope', sans-serif;
-  display: flex;
-  flex-direction: column;
-  color: var(--public-text);
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
+  padding: 2rem;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.public-header {
-  background: var(--public-bg);
-  padding: 1.5rem 0;
-  border-bottom: 1px solid var(--public-border);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+.verify-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--admin-border);
 }
 
-.header-content {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  display: flex;
-  align-items: center;
-}
-
-.header-logo-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  text-decoration: none;
-  color: inherit;
-}
-
-.header-logo-image {
-  height: 3rem;
-  width: auto;
-  display: block;
-}
-
-.header-title {
-  font-weight: 600;
-  font-size: 1.25rem;
-  color: var(--public-text);
+.verify-header h1 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--admin-accent);
+  margin-bottom: 0.5rem;
   letter-spacing: -0.025em;
 }
 
-.header-title-accent {
-  color: var(--binance-yellow);
+.verify-subtitle {
+  font-size: 1rem;
+  color: var(--admin-text-secondary);
 }
 
-.verify-main {
-  flex: 1;
-  padding: 4rem 1.5rem;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+.verify-content {
+  background: var(--admin-card);
+  border: 1px solid var(--admin-border);
+  border-radius: 0.75rem;
+  padding: 2.5rem;
 }
 
 .verify-card {
   width: 100%;
-  max-width: 64rem;
-  background: var(--public-card);
-  border-radius: 1.5rem;
-  padding: 4rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--public-border);
-  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .card-header {
-  text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 2rem;
 }
 
 .card-header h1 {
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  margin-bottom: 1rem;
-  color: var(--public-text);
+  margin-bottom: 0.5rem;
+  color: var(--admin-text);
 }
 
 .card-subtitle {
-  font-size: 1.1rem;
-  color: var(--public-text-secondary);
+  font-size: 1rem;
+  color: var(--admin-text-secondary);
   line-height: 1.6;
-  max-width: 700px;
-  margin: 0 auto;
 }
 
 .verification-sections {
@@ -94,19 +60,18 @@
 }
 
 .verify-section {
-  padding: 2.5rem;
-  background: var(--public-bg-secondary);
-  border-radius: 1rem;
-  border: 1px solid var(--public-border);
+  padding: 2rem;
+  background: var(--admin-bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .section-title {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  color: var(--binance-yellow);
-  margin-bottom: 2rem;
-  text-align: center;
+  color: var(--admin-accent);
+  margin-bottom: 1.5rem;
 }
 
 /* Verify by ID Section */
@@ -132,7 +97,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  background: var(--public-bg-secondary);
+  background: var(--admin-bg-secondary);
   border-radius: 0.75rem;
   border: 1px solid transparent;
   transition: border-color 0.2s;
@@ -141,7 +106,7 @@
 }
 
 .input-wrapper:focus-within {
-  border-color: var(--binance-yellow);
+  border-color: var(--admin-accent);
 }
 
 .input-icon {
@@ -155,7 +120,7 @@
   background: transparent;
   border: none;
   font-size: 0.875rem;
-  color: var(--public-text);
+  color: var(--admin-text);
   font-family: monospace;
   outline: none;
 }
@@ -170,7 +135,7 @@
 }
 
 .btn-verify-id {
-  background: var(--binance-yellow);
+  background: var(--admin-accent);
   border: none;
   border-radius: 0.75rem;
   color: black;
@@ -189,14 +154,14 @@
 }
 
 .btn-verify-id:hover:not(:disabled) {
-  background: var(--binance-yellow-hover);
+  background: var(--admin-accent-hover);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(247, 147, 26, 0.3);
 }
 
 .btn-verify-id:disabled {
-  background: var(--binance-dark-gray);
-  color: var(--binance-text-gray);
+  background: var(--admin-bg-secondary);
+  color: var(--admin-text-secondary);
   cursor: wait;
   transform: none;
 }
@@ -207,10 +172,10 @@
 }
 
 .upload-zone {
-  border: 2px dashed var(--public-border);
+  border: 2px dashed var(--admin-border);
   border-radius: 1rem;
   padding: 4rem 2rem;
-  background: var(--public-bg-secondary);
+  background: var(--admin-bg-secondary);
   cursor: pointer;
   transition: all 0.3s;
   min-height: 250px;
@@ -222,13 +187,13 @@
 }
 
 .upload-zone:hover:not(.processing) {
-  border-color: var(--binance-yellow);
-  background: #111;
+  border-color: var(--admin-accent);
+  background: var(--admin-hover);
 }
 
 .upload-zone.active {
-  border-color: var(--binance-yellow);
-  background: #1a1a1a;
+  border-color: var(--admin-accent);
+  background: var(--admin-hover);
 }
 
 .upload-zone.processing {
@@ -236,20 +201,20 @@
 }
 
 .upload-icon-large {
-  color: var(--binance-yellow);
+  color: var(--admin-accent);
   margin-bottom: 1rem;
 }
 
 .upload-label {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--public-text);
+  color: var(--admin-text);
   margin: 0;
 }
 
 .upload-hint {
   font-size: 1rem;
-  color: var(--public-text-secondary);
+  color: var(--admin-text-secondary);
   margin: 0;
 }
 
@@ -261,7 +226,7 @@
 }
 
 .upload-loading p {
-  color: var(--binance-yellow);
+  color: var(--admin-accent);
   font-size: 1.1rem;
   margin: 0;
 }
@@ -332,26 +297,26 @@
   margin: 0 0 0.5rem 0;
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--public-text);
+  color: var(--admin-text);
 }
 
 .result-text p {
   margin: 0;
   font-size: 1rem;
-  color: var(--public-text-secondary);
+  color: var(--admin-text-secondary);
 }
 
 .result-details {
   padding: 2.5rem;
-  background: var(--public-bg-secondary);
+  background: var(--admin-bg-secondary);
   transition: background-color 0.3s ease;
 }
 
 .cert-details-card {
   padding: 2rem;
-  background: var(--public-bg-secondary);
+  background: var(--admin-bg-secondary);
   border-radius: 0.75rem;
-  border: 1px solid var(--public-border);
+  border: 1px solid var(--admin-border);
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
@@ -376,13 +341,13 @@
 
 .detail-label {
   font-weight: 600;
-  color: var(--public-text-secondary);
+  color: var(--admin-text-secondary);
   font-size: 1rem;
   min-width: 150px;
 }
 
 .detail-value {
-  color: var(--public-text);
+  color: var(--admin-text);
   font-size: 1.1rem;
   text-align: right;
   flex: 1;
@@ -390,12 +355,12 @@
 
 .detail-value.cert-id {
   font-family: monospace;
-  color: var(--binance-yellow);
+  color: var(--admin-accent);
   font-weight: 600;
 }
 
 .btn-download-cert {
-  background: var(--binance-yellow);
+  background: var(--admin-accent);
   color: black;
   border: none;
   padding: 1.2rem 3rem;
@@ -409,7 +374,7 @@
 }
 
 .btn-download-cert:hover {
-  background: var(--binance-yellow-hover);
+  background: var(--admin-accent-hover);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(247, 147, 26, 0.3);
 }
@@ -419,9 +384,9 @@
   margin-top: 2rem;
   padding: 1rem 2rem;
   background: transparent;
-  border: 2px solid var(--public-border);
+  border: 2px solid var(--admin-border);
   border-radius: 0.75rem;
-  color: var(--public-text);
+  color: var(--admin-text);
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
@@ -429,47 +394,9 @@
 }
 
 .btn-verify-another:hover {
-  border-color: var(--binance-yellow);
-  color: var(--binance-yellow);
+  border-color: var(--admin-accent);
+  color: var(--admin-accent);
   background: rgba(247, 147, 26, 0.05);
-}
-
-.public-footer {
-  text-align: center;
-  padding: 2rem 1.5rem;
-  color: var(--public-text-secondary);
-  font-size: 0.875rem;
-  border-top: 1px solid var(--public-border);
-  margin-top: auto;
-  background: var(--public-bg);
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
-}
-
-.footer-content {
-  max-width: 1280px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-@media (min-width: 640px) {
-  .footer-content {
-    flex-direction: row;
-    justify-content: space-between;
-  }
-}
-
-.admin-link {
-  color: var(--binance-yellow);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.admin-link:hover {
-  color: var(--binance-yellow-hover);
-  text-decoration: underline;
 }
 
 @media (max-width: 768px) {

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getAllTemplates, populateTemplate } from '../utils/templateUtils'
 import { CheckCircle, AlertTriangle } from 'lucide-react'
 import './TemplateSelector.css'
 
-function TemplateSelector({ selectedTemplate, onSelect, previewData = null }) {
+function TemplateSelector({ selectedTemplate, onSelect, previewData = null, showManageLink = true }) {
+  const navigate = useNavigate()
   const [templates, setTemplates] = useState([])
   const [previewUrls, setPreviewUrls] = useState({}) // Store PDF preview URLs
   const [loadingPreviews, setLoadingPreviews] = useState({})
@@ -11,11 +13,6 @@ function TemplateSelector({ selectedTemplate, onSelect, previewData = null }) {
   useEffect(() => {
     const templatesList = getAllTemplates()
     setTemplates(templatesList)
-    
-    // Set default selection if none selected
-    if (!selectedTemplate && templatesList.length > 0) {
-      onSelect(templatesList[0].id)
-    }
     
     // Load previews for all templates immediately
     templatesList.forEach((template, index) => {
@@ -149,6 +146,25 @@ function TemplateSelector({ selectedTemplate, onSelect, previewData = null }) {
         <div className="template-warning" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <AlertTriangle size={16} />
           Please select a template to continue
+        </div>
+      )}
+
+      {showManageLink && (
+        <div className="template-manager-link-section">
+          <p className="template-manager-info">
+            Can't find a suitable template? You can create and manage custom templates in the{' '}
+            <a 
+              href="/admin/templates"
+              onClick={(e) => {
+                e.preventDefault()
+                navigate('/admin/templates')
+              }}
+              className="template-manager-link"
+            >
+              Template Manager
+            </a>
+            .
+          </p>
         </div>
       )}
     </div>

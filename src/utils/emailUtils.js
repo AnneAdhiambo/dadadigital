@@ -89,27 +89,9 @@ export async function sendCertificateEmail(certificate, recipientEmail, template
     }
   }
 
-  // Validate email - check if empty or whitespace
-  const trimmedEmail = recipientEmail ? recipientEmail.trim() : ''
-  
-  // Debug logging
-  console.log('sendCertificateEmail called with:', {
-    recipientEmail: recipientEmail,
-    trimmedEmail: trimmedEmail,
-    recipientEmailType: typeof recipientEmail,
-    recipientEmailLength: recipientEmail ? recipientEmail.length : 0
-  })
-  
-  if (!trimmedEmail) {
-    return {
-      success: false,
-      error: 'The recipient\'s address is empty. Please enter a valid email address.'
-    }
-  }
-
-  // Validate email format
+  // Validate email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  if (!emailRegex.test(trimmedEmail)) {
+  if (!emailRegex.test(recipientEmail)) {
     return {
       success: false,
       error: 'Invalid email address format.'
@@ -130,16 +112,8 @@ export async function sendCertificateEmail(certificate, recipientEmail, template
     const verificationUrl = buildVerificationUrl(certificate.id)
     
     // Prepare template parameters
-    // IMPORTANT: In EmailJS dashboard, the "To Email" field must be set to: {{to_email}}
-    // EmailJS requires the recipient email in 'to_email' parameter
-    // Some EmailJS services also need 'to_name' or 'reply_to'
-    // We include multiple variations to support different EmailJS service configurations
     const templateParams = {
-      to_email: trimmedEmail,        // Primary: Most common parameter name
-      email: trimmedEmail,           // Alternative: Some services use 'email'
-      user_email: trimmedEmail,      // Alternative: Some services use 'user_email'
-      to_name: certificate.studentName || 'Student',
-      reply_to: trimmedEmail,        // Some services need this
+      to_email: recipientEmail,
       student_name: certificate.studentName,
       course_type: certificate.courseType,
       cohort: certificate.cohort || 'N/A',
@@ -147,16 +121,6 @@ export async function sendCertificateEmail(certificate, recipientEmail, template
       issue_date: issueDate,
       verification_url: verificationUrl
     }
-    
-    // Log for debugging - show actual email for troubleshooting
-    console.log('📧 EmailJS Template Parameters:', {
-      to_email: trimmedEmail,
-      to_name: templateParams.to_name,
-      student_name: templateParams.student_name,
-      course_type: templateParams.course_type,
-      certificate_id: templateParams.certificate_id,
-      all_params: templateParams
-    })
 
     // Note: EmailJS attachment support varies by service provider
     // Some providers support attachments via base64, others require URLs
@@ -164,45 +128,11 @@ export async function sendCertificateEmail(certificate, recipientEmail, template
     // The user can download the PDF from the dashboard
     
     // Send email via EmailJS
-    const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID
-    const emailjsTemplateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID
-    const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-    
-    if (!serviceId || !emailjsTemplateId || !publicKey) {
-      return {
-        success: false,
-        error: 'EmailJS is not fully configured. Please check your environment variables.'
-      }
-    }
-    
-    console.log('📤 Sending email via EmailJS:', {
-      serviceId,
-      emailjsTemplateId,
-      recipient: trimmedEmail,
-      publicKey: publicKey ? `${publicKey.substring(0, 10)}...` : 'missing',
-      templateParams: {
-        ...templateParams,
-        to_email: trimmedEmail // Ensure it's included
-      }
-    })
-    
-    // Double-check that to_email is set
-    if (!templateParams.to_email || !templateParams.to_email.trim()) {
-      console.error('❌ ERROR: to_email is empty before sending!', {
-        templateParams,
-        trimmedEmail
-      })
-      return {
-        success: false,
-        error: 'Email address is empty. Please check the email input field.'
-      }
-    }
-    
     const response = await emailjs.send(
-      serviceId,
-      emailjsTemplateId,
+      import.meta.env.VITE_EMAILJS_SERVICE_ID,
+      import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
       templateParams,
-      publicKey
+      import.meta.env.VITE_EMAILJS_PUBLIC_KEY
     )
     
     console.log('Email sent successfully:', response)
@@ -213,39 +143,13 @@ export async function sendCertificateEmail(certificate, recipientEmail, template
     }
   } catch (error) {
     console.error('Failed to send email:', error)
-    console.error('Error details:', {
-      text: error.text,
-      message: error.message,
-      status: error.status,
-      response: error.response
-    })
     
     // Provide user-friendly error messages
     let errorMessage = 'Failed to send email. '
-    
-    // Check for specific EmailJS error messages
     if (error.text) {
-      // EmailJS returns error.text with the actual error message
-      const errorText = error.text.toLowerCase()
-      
-      // Check for common EmailJS errors
-      if (errorText.includes('recipient') && errorText.includes('empty')) {
-        errorMessage += 'The recipient email address is empty. '
-        errorMessage += 'Please ensure: 1) You entered a valid email address, and 2) In your EmailJS template settings, the "To Email" field is configured to use {{to_email}}'
-      } else {
-        errorMessage += error.text
-      }
+      errorMessage += error.text
     } else if (error.message) {
       errorMessage += error.message
-    } else if (error.status) {
-      errorMessage += `Error code: ${error.status}. `
-      if (error.status === 400) {
-        errorMessage += 'Invalid request. Please check your EmailJS template configuration. Make sure the "To Email" field uses {{to_email}}.'
-      } else if (error.status === 401) {
-        errorMessage += 'Unauthorized. Please check your EmailJS Public Key.'
-      } else if (error.status === 404) {
-        errorMessage += 'Service or Template not found. Please check your EmailJS Service ID and Template ID.'
-      }
     } else {
       errorMessage += 'Please check your EmailJS configuration and try again.'
     }
